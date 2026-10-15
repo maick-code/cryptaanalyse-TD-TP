@@ -135,7 +135,15 @@ def lancer() -> int:
             resultats.append((numero, titre, False, "TODO non fait : " + message))
         except Exception as erreur:  # noqa: BLE001 - on veut tout attraper pour l'étudiant
             detail = traceback.format_exception_only(type(erreur), erreur)[-1].strip()
-            resultats.append((numero, titre, False, "erreur Python : " + detail))
+            if "ellipsis" in detail.lower():
+                # C'est le cas classique du squelette non complété : il reste
+                # des « ... » dans la fonction. On le dit en français.
+                detail = ("cette fonction n'est pas encore écrite : il reste des "
+                          "« ... » du squelette à remplacer (voir la recette et la "
+                          "solution ✅ dans votre fichier de TP)")
+            else:
+                detail = "erreur Python : " + detail
+            resultats.append((numero, titre, False, detail))
         else:
             reussies += 1
             resultats.append((numero, titre, True, ""))

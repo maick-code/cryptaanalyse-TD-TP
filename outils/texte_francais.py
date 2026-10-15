@@ -1,21 +1,42 @@
-"""Outils « tout faits » sur le texte français (à utiliser, pas à réécrire).
+"""==========================================================================
+ OUTILS DU PROFESSEUR — le « modèle du français » pour la cryptanalyse
+==========================================================================
 
-Deux ensembles d'outils :
+Pour casser un chiffre, il faut savoir reconnaître du français.  C'est le rôle
+de ce fichier : il mesure à quel point un texte ressemble à du français.
 
-1. Le corpus de référence `TEXTE_REFERENCE` : un long texte en français écrit
-   en toutes lettres (sans chiffres ni ponctuation).  Il sert de *modèle* du
-   français pour la cryptanalyse statistique : en comptant les lettres de ce
-   texte, on obtient les fréquences de la langue française, et on peut les
-   comparer aux fréquences d'un message chiffré.
+Il fournit :
 
-2. Des fonctions d'affichage : `tableau_lettres`, `barres`, `chi2`, `indice_de_coincidence`.
+  * un CORPUS de référence : un long texte français (environ 2 400 lettres) ;
+  * `frequences(texte)`        : la part de chaque lettre, en pourcentage ;
+  * `tableau_lettres(...)`     : présentation en tableau aligné ;
+  * `barres(...)`              : histogramme en caractères # ;
+  * `indice_de_coincidence(texte)` : probabilité que deux lettres tirées au
+    hasard dans le texte soient égales (≈ 0,075 en français, ≈ 0,038 pour un
+    texte bien mélangé) ;
+  * `vraisemblance(texte)`     : note de « françaisité » fondée sur les paires
+    de lettres (bigrammes) ; plus la note est GRANDE, plus le texte ressemble à
+    du français.  C'est l'outil de l'attaque de la scytale ;
+  * `distance_au_francais(texte)` : écart entre les fréquences du texte et
+    celles du français ; plus la distance est PETITE, plus le texte ressemble à
+    du français.  C'est l'outil de l'attaque de César.
 
-Toutes ces fonctions n'utilisent que la bibliothèque standard Python.
+COMMENT LIRE LES COMMENTAIRES
+-----------------------------
+Un commentaire commence par # et Python l'ignore : il est là pour vous.  Les
+lignes qui commencent par >>> sont des exemples à taper dans l'interpréteur.
+
+Ce fichier est un peu plus technique que `reference.py` : vous n'avez pas besoin
+d'en comprendre chaque ligne pour faire les TP.  Lisez surtout les docstrings
+(les textes entre triple guillemets), qui expliquent à quoi sert chaque
+fonction.
+==========================================================================
 """
 
-from __future__ import annotations
+from __future__ import annotations  # ligne technique, sans effet sur le TP
 
-import math
+import math                         # pour la fonction math.log (logarithme)
+from typing import Optional         # pour écrire « peut valoir None » dans les types
 
 __all__ = [
     "ALPHABET",
@@ -31,10 +52,16 @@ __all__ = [
     "vraisemblance",
 ]
 
+# La même chaîne alphabétique que dans reference.py (le A est au rang 0).
+ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
 
 # ---------------------------------------------------------------------------
 # 1. Le corpus de référence
 # ---------------------------------------------------------------------------
+# C'est un texte français ordinaire, écrit ici « en dur » dans le fichier.
+# En le comptant, on obtient les fréquences du français : beaucoup de E, de S,
+# de A, et très peu de K, W, Z.
 
 TEXTE_REFERENCE = """
 L'art de cacher le sens d'un message est presque aussi ancien que l'ecriture.
@@ -85,42 +112,57 @@ presque toujours ces questions, et non les mathématiques, qui ont livré les
 secrets.
 """
 
-# ---------------------------------------------------------------------------
-# 2. Fonctions d'affichage et de mesure
-# ---------------------------------------------------------------------------
 
-ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+def texte_reference():
+    """Renvoie le corpus en majuscules, sans accent, sans ponctuation.
 
-
-def texte_reference() -> str:
-    """Renvoie le corpus de référence, mis en majuscules et débarrassé de tout
-    ce qui n'est pas une lettre de A à Z."""
+    Lecture du code : `c for c in ... if c in ALPHABET` s'appelle une
+    « compréhension ».  Elle construit la liste des caractères gardés, et
+    `"".join(...)` colle ensuite tous ces caractères en une seule chaîne.
+    """
     return "".join(c for c in TEXTE_REFERENCE.upper() if c in ALPHABET)
 
 
-def frequences(texte: str) -> dict:
-    """Fréquences des lettres de `texte`, en pourcentage.
+# ---------------------------------------------------------------------------
+# 2. Compter et représenter les lettres
+# ---------------------------------------------------------------------------
 
-    Renvoie un dictionnaire `{"A": 8.1, "B": 0.9, ...}` pour les 26 lettres,
-    chaque valeur étant le pourcentage d'occurrence (0.0 si la lettre est
-    absente).  Le texte est d'abord nettoyé : tout caractère qui n'est pas une
-    lettre de A à Z est ignoré.
+def frequences(texte):
+    """Fréquences des lettres du texte, en POURCENTAGE.
+
+    Renvoie un dictionnaire du genre {"A": 6.5, "B": 0.9, ..., "Z": 0.04} où
+    chaque valeur est la part de la lettre dans le texte, en pour cent.
+    Les lettres absentes ont une fréquence de 0.0.
+
+        >>> round(frequences("AAB")["A"], 1)
+        66.7
+
+    Lecture du code :
+        * `total = len(lettres) or 1` : on compte les lettres.  Si le texte est
+          vide, la longueur vaut 0, et le `or 1` évite de diviser par zéro ;
+        * `100.0 * comptes[lettre] / total` calcule la part, en pourcentage.
+          On multiplie par 100.0 (et non 100) pour obtenir un nombre à virgule.
     """
-    lettres = [c for c in texte.upper() if c in ALPHABET]
-    total = len(lettres) or 1
-    comptes = {lettre: 0 for lettre in ALPHABET}
-    for lettre in lettres:
+    lettres = [c for c in texte.upper() if c in ALPHABET]   # les lettres seulement
+    total = len(lettres) or 1                               # on ne divise pas par 0
+    comptes = {lettre: 0 for lettre in ALPHABET}            # 26 compteurs à zéro
+    for lettre in lettres:                                  # on compte
         comptes[lettre] += 1
+    # On renvoie un pourcentage pour chaque lettre, dans l'ordre A, B, ..., Z.
     return {lettre: 100.0 * comptes[lettre] / total for lettre in ALPHABET}
 
 
-def tableau_lettres(comptes: dict, en_pourcentage: bool = False) -> str:
-    """Présente un dictionnaire de comptes sous forme de deux lignes alignées.
+def tableau_lettres(comptes, en_pourcentage=False):
+    """Présente un dictionnaire de comptes sous forme de deux lignes alignées :
 
-        A    B    C   ...
-        12   1    3   ...
+        A      B      C    ...
+        12     1      3    ...
 
-    `comptes` peut venir de `comptage` (nombres) ou de `frequences` (pourcentages).
+    Lecture du code :
+        * `f"{lettre:>7}"` écrit la lettre alignée à droite sur 7 caractères ;
+        * `"".join(...)` colle tous ces petits morceaux pour former une ligne ;
+        * `f"{valeur:>7.1f}"` écrit un nombre à virgule avec 1 chiffre après la
+          virgule, aligné sur 7 caractères.
     """
     entete = "".join(f"{lettre:>7}" for lettre in ALPHABET)
     if en_pourcentage:
@@ -130,62 +172,119 @@ def tableau_lettres(comptes: dict, en_pourcentage: bool = False) -> str:
     return entete + "\n" + valeurs
 
 
-def barres(comptes: dict, largeur: int = 40, maximum: int | float | None = None) -> str:
-    """Histogramme horizontal, une ligne par lettre (de A à Z).
+def barres(comptes, largeur=40, maximum=None):
+    """Histogramme horizontal : une ligne par lettre, de A à Z.
 
-    Utile pour « voir » les fréquences d'un texte chiffré et les comparer à
-    celles du français.  Exemple (à essayer dans l'interpréteur) :
-
-        print(barres(frequences("BONJOUR")))
         A | 0
         B |#################### 14.2857
         ...
-        O |######################################## 28.5714
+
+    Lecture du code :
+        * `maximum or (max(comptes.values()) if comptes else 1)` choisit la plus
+          grande valeur : c'est elle qui donnera la plus longue barre ;
+        * `"#" * longueur` répète le caractère # ; une barre deux fois plus
+          longue signifie un compte deux fois plus grand ;
+        * `int(round(...))` transforme en nombre entier de caractères.
     """
     maximum = maximum or (max(comptes.values()) if comptes else 1)
-    maximum = maximum or 1
+    maximum = maximum or 1                                  # encore une fois 0 ?
     lignes = []
-    for lettre in ALPHABET:
+    for lettre in ALPHABET:                                 # une ligne par lettre
         valeur = comptes.get(lettre, 0)
-        longueur = int(round(largeur * valeur / maximum))
+        longueur = int(round(largeur * valeur / maximum))    # barre proportionnelle
         lignes.append(f"{lettre} |{'#' * longueur} {valeur:g}")
-    return "\n".join(lignes)
+    return "\n".join(lignes)                                # les lignes collées
 
 
-def chi2(observes: dict, attendus: dict) -> float:
-    """« Distance » entre deux distributions de fréquences (test du khi-deux).
+def chi2(observes, attendus):
+    """Écart entre deux distributions de fréquences (test du khi-deux).
 
-    Plus le résultat est petit, plus les deux distributions se ressemblent.
-    Sert à comparer les fréquences d'un texte candidat avec celles du français.
+    Plus le résultat est PETIT, plus les deux distributions se ressemblent.
+
     Ordres de grandeur mesurés avec le corpus de référence :
-
         * texte français                     : moins de 50 ;
-        * texte chiffré par César mal décalé : plusieurs centaines.
+        * texte français mal décalé (César)  : plusieurs centaines.
 
-    Pour un usage direct, préférez `distance_au_francais(candidat)`.
+    Lecture du code :
+        * pour chaque lettre, on calcule l'écart `observes - attendus` ;
+        * on l'élève au carré (pour que les écarts négatifs comptent aussi) ;
+        * on le divise par la valeur attendue (les grosses valeurs pardonnent) ;
+        * on additionne le tout : c'est la « distance » totale.
     """
     total = 0.0
     for lettre in ALPHABET:
         attendu = attendus.get(lettre, 0.0)
-        if attendu <= 0:
+        if attendu <= 0:                     # on ne divise pas par zéro
             continue
         ecart = observes.get(lettre, 0.0) - attendu
-        total += ecart * ecart / attendu
+        total += ecart * ecart / attendu     # le carré de l'écart, pondéré
     return total
 
 
+# ---------------------------------------------------------------------------
+# 3. Le modèle : les fréquences du français, et les bigrammes
+# ---------------------------------------------------------------------------
+
+# _FREQUENCES_DU_FRANCAIS est une variable « mémoire » : la première fois qu'on
+# demande les fréquences du français, on les calcule et on les range ici ; les
+# fois suivantes, on les relit directement (cela évite de recompter 2 400
+# lettres à chaque appel).
+_FREQUENCES_DU_FRANCAIS = None
+
+
+def frequences_du_francais():
+    """Fréquences des lettres du français (en pourcentage), calculées une fois
+    pour toutes sur le corpus de référence."""
+    global _FREQUENCES_DU_FRANCAIS          # on modifie la variable du dessus
+    if _FREQUENCES_DU_FRANCAIS is None:     # pas encore calculée ?
+        _FREQUENCES_DU_FRANCAIS = frequences(texte_reference())
+    return _FREQUENCES_DU_FRANCAIS
+
+
+def distance_au_francais(texte):
+    """Mesure à quel point `texte` ressemble à du français du point de vue des
+    FRÉQUENCES DES LETTRES.
+
+        PLUS LA DISTANCE EST PETITE, PLUS LE TEXTE RESSEMBLE À DU FRANÇAIS.
+        (0 serait un texte aux fréquences exactement françaises.)
+
+    Usage typique — casser un code de César :
+
+        for cle in range(26):                       # les 26 clefs possibles
+            candidat = cesar_dechiffrer(chiffre, cle)
+            print(cle, distance_au_francais(candidat))
+
+    ATTENTION (piège classique) : deux textes qui ne diffèrent que par un
+    décalage de l'alphabet ont exactement le même indice de coïncidence.  C'est
+    pourquoi l'indice de coïncidence ne sert PAS à casser César : il faut
+    comparer les fréquences lettre par lettre, ce que fait cette fonction.
+    """
+    return chi2(frequences(texte), frequences_du_francais())
+
+
+# _TABLE_BIGRAMMES garde en mémoire la probabilité de chaque paire de lettres
+# (« bigramme »), estimée sur le corpus.
 _TABLE_BIGRAMMES = None
 
 
 def _table_bigrammes():
-    """Table (une fois pour toutes) de la probabilité de chaque paire de lettres,
-    estimée sur le corpus de référence, avec un petit lissage pour qu'aucune
-    paire n'ait une probabilité nulle."""
+    """Table des probabilités de toutes les paires de lettres (AA, AB, ..., ZZ),
+    estimées sur le corpus de référence, avec un petit « lissage » pour qu'aucune
+    paire n'ait une probabilité nulle.
+
+    Lecture du code :
+        * on compte chaque paire de lettres consécutives : `texte[i:i+2]` prend
+          deux caractères côte à côte ;
+        * `comptes.get(paire, 0) + 1` augmente le compteur de cette paire ;
+        * on divise par le nombre total de paires pour obtenir une probabilité ;
+        * le « lissage » (0.5) ajoute une petite quantité à chaque paire, ce qui
+          évite les probabilités nulles que le logarithme n'aime pas.
+    """
     global _TABLE_BIGRAMMES
-    if _TABLE_BIGRAMMES is None:
+    if _TABLE_BIGRAMMES is None:                    # calculé une seule fois
         texte = texte_reference()
         comptes = {}
-        for position in range(len(texte) - 1):
+        for position in range(len(texte) - 1):      # toutes les paires voisines
             paire = texte[position:position + 2]
             comptes[paire] = comptes.get(paire, 0) + 1
         total = sum(comptes.values())
@@ -193,103 +292,82 @@ def _table_bigrammes():
         _TABLE_BIGRAMMES = {
             a + b: (comptes.get(a + b, 0) + lissage) / (total + 676 * lissage)
             for a in ALPHABET
-            for b in ALPHABET
+            for b in ALPHABET                        # les 26 x 26 paires possibles
         }
     return _TABLE_BIGRAMMES
 
 
-def vraisemblance(texte: str) -> float:
-    """Mesure à quel point `texte` ressemble à du français, en tenant compte de
-    l'ORDRE des lettres (et non seulement de leur fréquence).
+def vraisemblance(texte):
+    """Note de « françaisité » fondée sur l'ORDRE des lettres (les paires).
 
-    On calcule la vraisemblance moyenne des paires de lettres consécutives :
-    dans un texte français, les paires « ES », « LE », « EN », « DE », « NT »
-    sont fréquentes, tandis que « XZ », « QK » ou « BN » sont presque
-    impossibles.  Un texte français obtient ainsi un score nettement plus
-    élevé qu'un charabia.
+        PLUS LA NOTE EST GRANDE, PLUS LE TEXTE RESSEMBLE À DU FRANÇAIS.
 
-    PLUS LE SCORE EST GRAND (donc, comme c'est un logarithme, moins négatif),
-    PLUS LE TEXTE RESSEMBLE À DU FRANÇAIS.  Ordres de grandeur mesurés avec
-    cette fonction :
+    Ordres de grandeur mesurés avec cette fonction :
+        * corpus de référence (texte français suivi)  : environ -5,2 ;
+        * phrase française normale                    : environ -5,3 à -5,8 ;
+        * texte brouillé (permutation, charabia)      : environ -5,9 et moins.
 
-        * corpus de référence (texte français suivi) : environ -5,2 ;
-        * phrase française normale                   : environ -5,3 à -5,8 ;
-        * texte brouillé (permutation, charabia)     : environ -5,9 et moins.
+    Pourquoi c'est indispensable pour la scytale : une permutation ne change
+    AUCUNE lettre, donc tous les candidats ont les mêmes fréquences.  Ce qui les
+    distingue, c'est l'ordre des lettres : « ES », « LE », « DE », « NT » sont
+    fréquents en français, « XZ » ou « QK » ne le sont pas.
 
-    C'est l'outil qui permet de classer les candidats d'un code de
-    permutation : on garde celui dont la vraisemblance est la plus grande.
+    Lecture du code :
+        * `math.log(...)` calcule le logarithme (négatif, car les probabilités
+          sont inférieures à 1) ; on fait la moyenne des logarithmes, ce qui
+          évite que les longs textes soient pénalisés ;
+        * on divise par `len(texte) - 1` (le nombre de paires) pour obtenir une
+          note comparable d'un texte à l'autre.
     """
-    texte = "".join(c for c in texte.upper() if c in ALPHABET)
-    if len(texte) < 2:
-        return -99.0
+    texte = "".join(c for c in texte.upper() if c in ALPHABET)   # lettres seules
+    if len(texte) < 2:                                           # pas de paire ?
+        return -99.0                                             # note très mauvaise
     table = _table_bigrammes()
     total = 0.0
-    for position in range(len(texte) - 1):
-        total += math.log(table[texte[position:position + 2]])
-    return total / (len(texte) - 1)
+    for position in range(len(texte) - 1):                       # chaque paire
+        total += math.log(table[texte[position:position + 2]])   # son logarithme
+    return total / (len(texte) - 1)                              # la moyenne
 
 
-_FREQUENCES_DU_FRANCAIS = None
+# ---------------------------------------------------------------------------
+# 4. L'indice de coïncidence (outil des séances 1 et 3)
+# ---------------------------------------------------------------------------
 
-
-def frequences_du_francais() -> dict:
-    """Fréquences des lettres du français (en pourcentage), calculées une fois
-    pour toutes sur le corpus de référence `TEXTE_REFERENCE`.
-
-    Renvoie un dictionnaire du type `{"A": 6.5, "B": 0.9, ..., "Z": 0.04}`.
-    C'est le « modèle » auquel on compare un texte candidat.
-    """
-    global _FREQUENCES_DU_FRANCAIS
-    if _FREQUENCES_DU_FRANCAIS is None:
-        _FREQUENCES_DU_FRANCAIS = frequences(texte_reference())
-    return _FREQUENCES_DU_FRANCAIS
-
-
-def distance_au_francais(texte: str) -> float:
-    """Mesure à quel point `texte` ressemble à du français du point de vue des
-    fréquences de lettres.  PLUS LA DISTANCE EST PETITE, PLUS LE TEXTE
-    RESSEMBLE À DU FRANÇAIS (0 serait un texte aux fréquences exactement
-    françaises).
-
-    Utilisation typique — retrouver la clef d'un code de César en essayant les
-    26 clefs possibles :
-
-        for cle in range(26):
-            candidat = cesar_dechiffrer(chiffre, cle)
-            print(cle, distance_au_francais(candidat))
-
-    Attention : deux textes qui ne diffèrent que par un décalage de l'alphabet
-    (donc deux candidats d'un code de César) ont EXACTEMENT le même indice de
-    coïncidence : c'est pour cela qu'on n'utilise pas l'indice de coïncidence
-    ici, mais la comparaison des fréquences lettre par lettre, que réalise
-    cette fonction.
-    """
-    return chi2(frequences(texte), frequences_du_francais())
-
-
-def indice_de_coincidence(texte: str) -> float:
+def indice_de_coincidence(texte):
     """Indice de coïncidence : probabilité que deux lettres tirées au hasard
     dans le texte soient identiques.
 
-    Repères utiles, pour un alphabet de 26 lettres :
+    Repères, pour un alphabet de 26 lettres :
+        * texte écrit dans une langue (structuré)   : environ 0,07 ;
+        * texte bien mélangé (lettres équiprobables) : environ 0,038 (= 1/26).
 
-        * texte écrit dans une langue (structures répétées) : environ 0,07 ;
-        * texte chiffré « bien mélangé » (lettres presque équiprobables) : environ 0,038.
+    Utilisation : c'est l'outil qui permet de deviner si un texte est resté
+    « structuré » comme le français.  Il sert en séance 3 à trouver la période de
+    Vigenère.  Il NE sert PAS à casser César : il est le même pour les 26
+    décalages (voir `distance_au_francais`).
 
-    C'est l'outil de base pour deviner si un chiffrement a conservé les
-    structures du français.
+    Lecture du code :
+        * `n = len(lettres)` : le nombre de lettres ;
+        * `compte * (compte - 1)` : c'est le nombre de paires ordonnées que l'on
+          peut former avec les `compte` exemplaires de cette lettre ;
+        * on divise par `n * (n - 1)`, le nombre total de paires possibles : le
+          résultat est bien une probabilité.
     """
-    lettres = [c for c in texte.upper() if c in ALPHABET]
+    lettres = [c for c in texte.upper() if c in ALPHABET]     # les lettres du texte
     n = len(lettres)
-    if n < 2:
+    if n < 2:                                                 # besoin de 2 lettres
         return 0.0
-    comptes = {lettre: 0 for lettre in ALPHABET}
+    comptes = {lettre: 0 for lettre in ALPHABET}              # 26 compteurs à zéro
     for lettre in lettres:
         comptes[lettre] += 1
     numerateur = sum(compte * (compte - 1) for compte in comptes.values())
-    return numerateur / (n * (n - 1))
+    return numerateur / (n * (n - 1))                         # une probabilité
 
 
+# ---------------------------------------------------------------------------
+# Test rapide : quand on lance ce fichier directement, on affiche le modèle.
+#     python3 outils/texte_francais.py
+# ---------------------------------------------------------------------------
 if __name__ == "__main__":
     reference = texte_reference()
     print("Longueur du corpus de référence :", len(reference), "lettres")
@@ -301,3 +379,14 @@ if __name__ == "__main__":
     print(barres(frequences(reference)))
     print()
     print("Indice de coïncidence du corpus :", round(indice_de_coincidence(reference), 4))
+    print("Vraisemblance du corpus        :", round(vraisemblance(reference), 3))
+    print()
+    print("Pour comparaison, la vraisemblance d'un texte brouillé :")
+    # On importe la scytale ici, et l'on s'assure que le dossier « outils » est
+    # accessible, quel que soit l'endroit d'où l'on lance la commande.
+    import os
+    import sys
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from outils.reference import scytale_chiffrer
+    bouilli = scytale_chiffrer("LEGRANDMESSAGERARRIVECETTEAPRESMIDI", 7)
+    print("  scytale à clef 7 :", round(vraisemblance(bouilli), 3))

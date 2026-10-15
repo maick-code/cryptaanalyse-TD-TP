@@ -24,18 +24,20 @@ cryptaanalyse-TD-TP/
 │   ├── texte_francais.py           corpus de référence, fréquences, khi-deux,
 │   │                               vraisemblance de bigrammes, indice de coïncidence
 │   ├── verif.py                    mini-harnais d'épreuves (bibliothèque standard uniquement)
-│   └── generer_messages.py         outil du professeur : régénère messages et empreintes
+│   ├── generer_messages.py         outil du professeur : régénère messages et empreintes
+│   └── verifier_solutions.py       outil du professeur : vérifie que les blocs ✅ SOLUTION
+│                                   suffisent à passer toutes les épreuves
 ├── seance1_permutation_substitution/
-│   ├── td1_...ipynb                feuille de TD (notebook, avec expériences guidées)
 │   ├── tp1_permutation.py          fichier à compléter par les étudiants (9 fonctions)
+│   │                               auto-suffisant : mini-cours de Python, recettes,
+│   │                               squelettes à trous, solutions ✅, expériences,
+│   │                               questions de rapport
 │   ├── common.py                   réexporte les outils du professeur (compatibilité)
 │   └── test_tp1_permutation.py     épreuves automatiques (11)
 ├── seance2_vigenere/
-│   ├── td2_vigenere.ipynb
 │   ├── tp2_vigenere.py             fichier à compléter (10 fonctions)
 │   └── test_tp2_vigenere.py        épreuves automatiques (12)
 ├── seance3_cryptanalyse/
-│   ├── td3_cryptanalyse_vigenere_vic.ipynb
 │   ├── tp3_vigenere_vic.py         fichier à compléter (12 fonctions)
 │   └── test_tp3_vigenere_vic.py    épreuves automatiques (14)
 └── corriges/
@@ -76,19 +78,31 @@ les fichiers d'épreuves : ceux-ci contiennent des empreintes SHA-256, produites
 `outils/generer_messages.py`. Un étudiant qui lit le fichier de tests n'y trouve donc
 pas la solution.
 
+Deux outils de maintenance, à lancer après toute modification :
+
+```bash
+python3 outils/generer_messages.py     # régénère messages + empreintes, et rejoue vos attaques
+python3 outils/verifier_solutions.py   # recopie les blocs ✅ SOLUTION à la place des squelettes,
+                                       # lance les épreuves, puis restaure les fichiers
+```
+
+Le second répond à la question « un étudiant qui recopie fidèlement la solution imprimée
+dans son fichier obtient-il bien toutes les épreuves ? ». Il garantit donc que le guidage
+va bien jusqu'à la réponse, sans trou manquant.
+
 ## 3. Déroulé conseillé des séances
 
 ### Séance 1 — Généralités, permutation, substitution (2 h)
 
 | Temps | Contenu | Où |
 |---|---|---|
-| 10 min | Définition axiomatique d'un code, Kerckhoffs, vocabulaire | notebook, § 1 |
-| 15 min | Observation : histogramme du français, message intercepté | notebook, § 3 |
+| 10 min | Définition axiomatique d'un code, Kerckhoffs, vocabulaire | lire le mini-cours (§ A du TP 1) |
+| 15 min | Observation : histogramme du français, message intercepté | expériences 1 et 3 du TP 1 |
 | 20 min | A.1 `nettoyer_simple`, A.2 `compter_lettres` | `tp1_permutation.py` |
 | 25 min | B.1–B.3 : la scytale et son attaque (permutation) | idem |
 | 30 min | C.1–C.3 : César, puis attaque par comparaison de fréquences | idem |
 | 10 min | D.1 `message_compromis`, histoire de Marie Stuart | idem |
-| 10 min | Rédaction des questions de rapport | notebook, § 10 |
+| 10 min | Rédaction des questions de rapport | § D du TP 1 |
 
 Points à installer explicitement au tableau : la scytale ne change **aucune** lettre,
 donc les fréquences restent celles du français ; ce sont des **bigrammes** (paires de
@@ -98,13 +112,13 @@ lettres) qui trahissent le mauvais ordre, d'où l'usage de `vraisemblance`.
 
 | Temps | Contenu | Où |
 |---|---|---|
-| 10 min | Idée du chiffre polyalphabétique, convention sur les espaces | notebook, § 1 |
+| 10 min | Idée du chiffre polyalphabétique, convention sur les espaces | rappels du cours du TP 2 |
 | 20 min | A.1–A.3, B.1–B.2 : mettre Vigenère en œuvre | `tp2_vigenere.py` |
-| 20 min | **Expérience centrale** : trois histogrammes (clair, César, Vigenère) | notebook, § 3 |
-| 20 min | Expérience « une colonne = un César » | notebook, § 4 |
+| 20 min | **Expérience centrale** : trois histogrammes (clair, César, Vigenère) | expérience 1 du TP 2 |
+| 20 min | Expérience « une colonne = un César » | expérience 2 du TP 2 |
 | 30 min | C.1–C.4 : casser les deux dépêches (périodes données) | `tp2_vigenere.py` |
 | 15 min | D.1 : attaque à texte clair connu (méthode de Kasiski) | idem |
-| 10 min | Double chiffrement, compromis du masque jetable | notebook, § 7–8 |
+| 10 min | Double chiffrement, compromis du masque jetable | question 6 du TP 2 |
 
 La difficulté technique de la séance est le compteur de lettres de clef : il ne
 s'incrémente **que** sur les lettres (les espaces ne consomment rien). Faites écrire
@@ -114,17 +128,17 @@ au tableau le premier espace du message pour éviter l'erreur classique.
 
 | Temps | Contenu | Où |
 |---|---|---|
-| 10 min | Kasiski : pourquoi les distances sont multiples de la période | notebook, § 1 |
+| 10 min | Kasiski : pourquoi les distances sont multiples de la période | rappels du cours du TP 3 |
 | 25 min | A.1–A.3 : indice de coïncidence, tableau des périodes | `tp3_vigenere_vic.py` |
 | 20 min | B.1–B.3 : répétitions, distances, diviseurs + tableau de support | idem |
 | 25 min | C.1–C.2 puis déchiffrement complet des deux dépêches | idem |
 | 30 min | D.1–D.4 : VIC simplifié (damier, transposition, addition de clef) | idem |
-| 15 min | Synthèse : César → Vigenère → VIC → Enigma ; questions de rapport | notebook, § 6 |
+| 15 min | Synthèse : César → Vigenère → VIC → Enigma ; questions de rapport | § questions du TP 3 |
 
 Le point d'articulation de la séance est le suivant : **Kasiski seul est ambigu** (les
 petits diviseurs 2, 3, 4 divisent beaucoup de distances par hasard), **l'indice de
-coïncidence tranche**. Faites afficher les deux tableaux côte à côte (les cellules du
-notebook le font) : c'est une belle leçon de méthode.
+coïncidence tranche**. Faites afficher les deux tableaux côte à côte (l'expérience 3 du
+TP 3 le fait) : c'est une belle leçon de méthode.
 
 ## 4. Programme des fonctions à écrire
 
@@ -154,6 +168,33 @@ notebook le font) : c'est une belle leçon de méthode.
 `grammes_repetes`, `kasiski_distances`, `diviseurs`, `forcer_cesar_sur_colonne`,
 `forcer_vigenere`, `caractere_vic`, `ligne_du_damier`, `chiffre_du_damier`,
 `dechiffrer_message_vic`.
+
+## 4 bis. Comment le guidage est organisé (et comment noter)
+
+Les étudiants n'ont pas de niveau en Python. Chaque fichier de TP est donc construit pour
+être lu et suivi sans connaissances préalables :
+
+* **mini-cours en tête de fichier** : les dix gestes de Python utilisés (variables, chaînes,
+  boucles, listes, dictionnaires, fonctions), avec des exemples courts et les cinq erreurs
+  classiques ;
+* **recette numérotée** en français pour chaque fonction, indépendante du code ;
+* **squelette à trous** : les boucles, tests et affectations sont déjà écrits ; l'étudiant
+  remplace les `...` par l'expression demandée (le commentaire en face dit ce qu'il faut
+  mettre) ;
+* **bloc ✅ SOLUTION** en commentaire dans le même fichier, avec la consigne orale : « tu
+  essaies d'abord, tu lis la solution si tu bloques plus de cinq minutes ». La solution
+  complète est donc disponible, mais il faut la recopier et la comprendre ;
+* **fonctions de contrôle** en fin de fichier (`python3 tpX_....py`) qui affichent, fonction
+  par fonction, « pas encore terminée » ou le résultat obtenu ;
+* **expériences** à taper dans l'interpréteur (`python3`), suivies de **questions de
+  rapport**.
+
+Suggestion de barème (sur 20) : 12 points pour les épreuves automatiques (`[OK]` comptés sur
+le total de la séance), 4 points pour les questions de rapport, 4 points pour la clarté du
+code et la capacité à expliquer une fonction à l'oral. Les blocs ✅ étant fournis, la note
+de code ne doit pas récompenser la recopie, mais l'explication : faites commenter une
+fonction au tableau, ou poser une question du type « que renvoie `candidat[:40]` et
+pourquoi ? ».
 
 ## 5. Erreurs les plus fréquentes (à surveiller)
 
@@ -220,7 +261,7 @@ indique le nombre de lettres à ajouter ou à retirer si ce n'est pas le cas.
   la position du caractère dans son bloc de 10, et le damier 10 × 10 est un carré latin
   construit comme celui du VIC (chaque ligne et chaque colonne contient les 10 lettres
   une fois). Les différences sont documentées dans `outils/reference.py`, section 5, et
-  dans le notebook de la séance 3. Les TDs de l'enseignement de P. Boyer contiennent le
+  dans les rappels du cours du fichier de TP de la séance 3. Les TDs de l'enseignement de P. Boyer contiennent le
   vrai tableau du VIC : il suffit de le recopier à la place du nôtre (`TABLEAU_VIC`),
   le reste du code étant inchangé — mais il faut alors adapter la règle de conversion
   lettres ↔ chiffres, qui dépend de la table utilisée.
@@ -229,6 +270,11 @@ indique le nombre de lettres à ajouter ou à retirer si ce n'est pas le cas.
   moyenne des bigrammes, estimée sur le corpus de référence) pour l'attaque de la
   scytale, `indice_de_coincidence` pour la séance 3. Ce sont les critères classiques du
   domaine, sous une forme utilisable en première année.
+* **Code fourni lisible** : `outils/reference.py` et `outils/texte_francais.py` sont
+  commentés presque ligne à ligne en français simple, pour que les étudiants puissent lire
+  le code du professeur (usage de `%`, `//`, `enumerate`, dictionnaires, etc.). Les
+  fichiers de TP ne comportent aucune bibliothèque externe, uniquement la bibliothèque
+  standard de Python 3.
 * **Barème robuste** : les épreuves ont été vérifiées contre deux implémentations
   indépendantes (le corrigé, et une seconde écriture de style différent, utilisant
   d'autres critères statistiques sur les cas marginaux). Les tests ne dépendent pas
