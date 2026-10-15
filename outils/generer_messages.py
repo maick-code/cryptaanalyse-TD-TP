@@ -55,32 +55,50 @@ ZONES_CONSTANTES = {
     "seance1_permutation_substitution/tp1_permutation.py": [
         ("tp1_scytale", "MESSAGE_SCYTALE", "chaine"),
         ("tp1_cesar", "MESSAGE_CESAR", "chaine"),
+        ("tp1_mystere1", "MESSAGE_MYSTERE_1", "chaine"),
+        ("tp1_mystere2", "MESSAGE_MYSTERE_2", "chaine"),
+        ("tp1_mystere3", "MESSAGE_MYSTERE_3", "chaine"),
     ],
     "corriges/corrige_tp1_permutation.py": [
         ("tp1_scytale", "MESSAGE_SCYTALE", "chaine"),
         ("tp1_cesar", "MESSAGE_CESAR", "chaine"),
+        ("tp1_mystere1", "MESSAGE_MYSTERE_1", "chaine"),
+        ("tp1_mystere2", "MESSAGE_MYSTERE_2", "chaine"),
+        ("tp1_mystere3", "MESSAGE_MYSTERE_3", "chaine"),
     ],
     "seance2_vigenere/tp2_vigenere.py": [
         ("tp2_vigenere1", "MESSAGE_VIGENERE_1", "chaine"),
-        ("tp2_vigenere2", "MESSAGE_VIGENERE_2", "chaine"),
         ("tp2_vigenere1", "PERIODE_1", "periode"),
+        ("tp2_vigenere2", "MESSAGE_VIGENERE_2", "chaine"),
         ("tp2_vigenere2", "PERIODE_2", "periode"),
+        ("tp2_urgent", "MESSAGE_URGENT", "chaine"),
+        ("tp2_urgent", "PERIODE_URGENT", "periode"),
+        ("tp2_connu", "MESSAGE_INTERCEPTE", "chaine"),
+        ("tp2_connu", "TEXTE_CONNU", "texte_connu"),
     ],
     "corriges/corrige_tp2_vigenere.py": [
         ("tp2_vigenere1", "MESSAGE_VIGENERE_1", "chaine"),
-        ("tp2_vigenere2", "MESSAGE_VIGENERE_2", "chaine"),
         ("tp2_vigenere1", "PERIODE_1", "periode"),
+        ("tp2_vigenere2", "MESSAGE_VIGENERE_2", "chaine"),
         ("tp2_vigenere2", "PERIODE_2", "periode"),
+        ("tp2_urgent", "MESSAGE_URGENT", "chaine"),
+        ("tp2_urgent", "PERIODE_URGENT", "periode"),
+        ("tp2_connu", "MESSAGE_INTERCEPTE", "chaine"),
+        ("tp2_connu", "TEXTE_CONNU", "texte_connu"),
     ],
     "seance3_cryptanalyse/tp3_vigenere_vic.py": [
         ("tp3_vigenere1", "MESSAGE_1", "chaine"),
         ("tp3_vigenere2", "MESSAGE_2", "chaine"),
+        ("tp3_nouveau1", "MESSAGE_3", "chaine"),
+        ("tp3_nouveau2", "MESSAGE_4", "chaine"),
         ("tp3_vic", "MESSAGE_VIC", "chaine"),
         ("tp3_vic", "CLE_VIC", "cle_vic"),
     ],
     "corriges/corrige_tp3_vigenere_vic.py": [
         ("tp3_vigenere1", "MESSAGE_1", "chaine"),
         ("tp3_vigenere2", "MESSAGE_2", "chaine"),
+        ("tp3_nouveau1", "MESSAGE_3", "chaine"),
+        ("tp3_nouveau2", "MESSAGE_4", "chaine"),
         ("tp3_vic", "MESSAGE_VIC", "chaine"),
         ("tp3_vic", "CLE_VIC", "cle_vic"),
     ],
@@ -92,14 +110,21 @@ ZONES_EMPREINTES = {
     "seance1_permutation_substitution/test_tp1_permutation.py": [
         ("tp1_scytale", "scytale"),
         ("tp1_cesar", "cesar"),
+        ("tp1_mystere1", "mystere1"),
+        ("tp1_mystere2", "mystere2"),
+        ("tp1_mystere3", "mystere3"),
     ],
     "seance2_vigenere/test_tp2_vigenere.py": [
         ("tp2_vigenere1", "vigenere1"),
         ("tp2_vigenere2", "vigenere2"),
+        ("tp2_urgent", "urgent"),
+        ("tp2_connu", "connu"),
     ],
     "seance3_cryptanalyse/test_tp3_vigenere_vic.py": [
         ("tp3_vigenere1", "vigenere1"),
         ("tp3_vigenere2", "vigenere2"),
+        ("tp3_nouveau1", "vigenere3"),
+        ("tp3_nouveau2", "vigenere4"),
         ("tp3_vic", "vic"),
     ],
 }
@@ -143,7 +168,11 @@ def preparer(messages: dict) -> dict:
             raise ValueError(f"méthode inconnue : {methode}")
 
         resultat[identifiant] = dict(description)
-        resultat[identifiant].update({"clair_prepare": clair, "chiffre": chiffre})
+        valeurs = {"clair_prepare": clair, "chiffre": chiffre}
+        if description.get("fragment"):
+            # Attaque à texte connu : on révèle le début du message clair.
+            valeurs["clair_fragment"] = clair[: description["fragment"]]
+        resultat[identifiant].update(valeurs)
     return resultat
 
 
@@ -189,6 +218,11 @@ def texte_de_la_zone(identifiant, nom, type_valeur, messages) -> str:
         return f"{nom} = {len(message['cle'])}"
     if type_valeur == "cle_vic":
         return f'{nom} = "{message["cle"]}"'
+    if type_valeur == "texte_connu":
+        fragment = message["clair_fragment"]
+        return f"{nom} = (\n" + "".join(
+            f'    "{fragment[i:i + 62]}"\n' for i in range(0, len(fragment), 62)
+        ) + ")"
     raise ValueError(f"type de valeur inconnu : {type_valeur}")
 
 
@@ -247,6 +281,26 @@ def verifier_attaques(messages: dict) -> bool:
             print("  /!\\ TP 1 / César : l'attaque échoue sur ce message")
 
     try:
+        from corriges.corrige_tp1_permutation import identifier_et_dechiffrer
+    except Exception as erreur:  # noqa: BLE001
+        print(f"  (identification du TP 1 non testée : {erreur})")
+    else:
+        for identifiant in ("tp1_mystere1", "tp1_mystere2", "tp1_mystere3"):
+            message = messages[identifiant]
+            methode, cle, texte = identifier_et_dechiffrer(message["chiffre"])
+            attendu = message["clair_prepare"]
+            if (methode == message["methode"].upper()
+                    and cle == message["cle"]
+                    and texte[:len(attendu)] == attendu):
+                print(f"  TP 1 / {identifiant} : reconnu ({methode}, clef {cle}) "
+                      "et déchiffré")
+            else:
+                tout_bon = False
+                print(f"  /!\\ TP 1 / {identifiant} : l'identification échoue "
+                      f"(trouvé {methode} / clef {cle}, attendu "
+                      f"{message['methode'].upper()} / {message['cle']})")
+
+    try:
         from corriges.corrige_tp2_vigenere import forcer_vigenere
     except Exception as erreur:  # noqa: BLE001
         print(f"  (corrigé du TP 2 non testé : {erreur})")
@@ -263,27 +317,84 @@ def verifier_attaques(messages: dict) -> bool:
                       f"(clef trouvée {cle}, attendue {message['cle']})")
 
     try:
-        from corriges.corrige_tp3_vigenere_vic import forcer_vigenere, periode_probable
+        from corriges.corrige_tp2_vigenere import cle_par_texte_connu
+    except Exception as erreur:  # noqa: BLE001
+        print(f"  (attaque à texte connu du TP 2 non testée : {erreur})")
+    else:
+        message = messages["tp2_urgent"]
+        cle, clair = forcer_vigenere(message["chiffre"], len(message["cle"]))
+        if cle == message["cle"] and clair[:len(message["clair_prepare"])] == message["clair_prepare"]:
+            print(f"  TP 2 / tp2_urgent : attaque réussie (clef {cle})")
+        else:
+            tout_bon = False
+            print(f"  /!\\ TP 2 / tp2_urgent : l'attaque échoue "
+                  f"(clef trouvée {cle}, attendue {message['cle']})")
+
+        message = messages["tp2_connu"]
+        fragment = message["clair_fragment"]
+        cle = cle_par_texte_connu(fragment, message["chiffre"])
+        if cle == message["cle"]:
+            print(f"  TP 2 / tp2_connu : clef {cle} retrouvée à partir de "
+                  f"{len(fragment)} lettres connues")
+        else:
+            tout_bon = False
+            print(f"  /!\\ TP 2 / tp2_connu : clef trouvée {cle}, "
+                  f"attendue {message['cle']}")
+
+    try:
+        from corriges.corrige_tp3_vigenere_vic import (
+            forcer_vigenere as forcer_tp3,
+            periode_probable,
+        )
     except Exception as erreur:  # noqa: BLE001
         print(f"  (corrigé du TP 3 non testé : {erreur})")
     else:
-        for identifiant in ("tp3_vigenere1", "tp3_vigenere2"):
+        from corriges.corrige_tp3_vigenere_vic import support_kasiski
+        for identifiant in ("tp3_vigenere1", "tp3_vigenere2", "tp3_nouveau1",
+                            "tp3_nouveau2"):
             message = messages[identifiant]
+            vraie_periode = len(message["cle"])
             periode = periode_probable(message["chiffre"])
-            if periode == len(message["cle"]):
+            if periode == vraie_periode:
                 print(f"  TP 3 / {identifiant} : période {periode} retrouvée "
-                      f"(vraie période : {len(message['cle'])})")
+                      f"(vraie période : {vraie_periode})")
             else:
                 tout_bon = False
                 print(f"  /!\\ TP 3 / {identifiant} : période trouvée {periode}, "
-                      f"attendue {len(message['cle'])}")
-            cle, clair = forcer_vigenere(message["chiffre"], len(message["cle"]))
+                      f"attendue {vraie_periode}")
+            cle, clair = forcer_tp3(message["chiffre"], vraie_periode)
             if cle == message["cle"]:
                 print(f"  TP 3 / {identifiant} : clef {cle} retrouvée")
             else:
                 tout_bon = False
                 print(f"  /!\\ TP 3 / {identifiant} : clef trouvée {cle}, "
                       f"attendue {message['cle']}")
+
+            # Kasiski seul ne tranche pas (ses petits diviseurs votent aussi) :
+            # on vérifie simplement que la vraie période fait partie des cinq
+            # meilleures candidates, ce qui justifie de croiser les deux méthodes.
+            support = support_kasiski(message["chiffre"])
+            if support:
+                classement = sorted(support, key=lambda p: (-support[p], p))
+                rang = classement.index(vraie_periode) + 1 if vraie_periode in classement else None
+                if rang is not None and rang <= 5:
+                    print(f"  TP 3 / {identifiant} : Kasiski place la vraie période "
+                          f"au rang {rang} sur {len(classement)} "
+                          f"(support {support[vraie_periode]})")
+                else:
+                    tout_bon = False
+                    print(f"  /!\\ TP 3 / {identifiant} : la vraie période {vraie_periode} "
+                          f"n'est pas bien classée par Kasiski (rang {rang})")
+
+        # VIC : la clef est connue, on vérifie que le déchiffrement redonne le clair.
+        from corriges.corrige_tp3_vigenere_vic import dechiffrer_message_vic
+        message = messages["tp3_vic"]
+        clair = dechiffrer_message_vic(message["chiffre"], message["cle"])
+        if clair[:len(message["clair_prepare"])] == message["clair_prepare"]:
+            print("  TP 3 / tp3_vic : message VIC déchiffré (clef connue des étudiants)")
+        else:
+            tout_bon = False
+            print("  /!\\ TP 3 / tp3_vic : le déchiffrement du message VIC échoue")
 
     return tout_bon
 
@@ -319,8 +430,11 @@ def main() -> int:
             lignes.append(f'        "longueur": {len(message["clair_prepare"])},')
             lignes.append(f'        "texte": "{empreinte(message["clair_prepare"])}",')
             lignes.append(f'        "cle": "{empreinte(message["cle"])}",')
+            lignes.append(f'        "methode": "{empreinte(message["methode"].upper())}",')
             if message["methode"] == "vigenere":
                 lignes.append(f'        "periode": "{empreinte(len(message["cle"]))}",')
+            if message.get("clair_fragment"):
+                lignes.append(f'        "fragment": {len(message["clair_fragment"])},')
             lignes.append("    },")
         lignes.append("}")
         remplacer_zone(chemin, "\n".join(lignes), ecrire)

@@ -1,9 +1,15 @@
 """=========================================================================
  CORRIGÉ DU TP 2 — codes polyalphabétiques (Vigenère) et son attaque
 ==========================================================================
-Test :
+Version corrigée du fichier des étudiants ; mêmes noms, mêmes épreuves :
+
     cd seance2_vigenere
     TP_CORRIGE=1 python3 test_tp2_vigenere.py
+
+PARTIE B — code à écrire par les étudiants :
+    vigenere_chiffrer, vigenere_dechiffrer
+PARTIE C — CRYPTANALYSE (le cœur du TP) :
+    decalage_probable, forcer_vigenere, cle_par_texte_connu
 ==========================================================================
 """
 
@@ -14,35 +20,20 @@ RACINE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if RACINE not in sys.path:
     sys.path.insert(0, RACINE)
 
-from outils.reference import ALPHABET, rehabiller  # noqa: E402
+from outils.reference import (  # noqa: E402
+    ALPHABET,
+    colonnes,             # outil fourni
+    decaler_lettre,       # outil fourni
+    indice_de_la_lettre,  # outil fourni
+    rehabiller,           # outil fourni
+    recoller,             # outil fourni
+    vider_les_espaces,    # outil fourni
+)
 from outils.texte_francais import distance_au_francais  # noqa: E402
 
 
 # ==========================================================================
-# PARTIE A
-# ==========================================================================
-
-def indice_de_la_lettre(lettre):
-    """Solution A.1."""
-    return ALPHABET.index(lettre.upper())
-
-
-def decaler_lettre(lettre, decalage):
-    """Solution A.2."""
-    return ALPHABET[(indice_de_la_lettre(lettre) + decalage) % 26]
-
-
-def vider_les_espaces(texte):
-    """Solution A.3."""
-    resultat = ""
-    for caractere in texte.upper():
-        if "A" <= caractere <= "Z":
-            resultat += caractere
-    return resultat
-
-
-# ==========================================================================
-# PARTIE B
+# PARTIE B — le code à écrire
 # ==========================================================================
 
 def vigenere_chiffrer(texte, cle):
@@ -50,10 +41,11 @@ def vigenere_chiffrer(texte, cle):
 
     Le point délicat est le compteur `rang_clef` : il ne s'incrémente QUE
     lorsqu'on rencontre une lettre, car les espaces et la ponctuation ne
-    consomment pas de lettre de clef (convention des exercices de ce TP).
+    consomment pas de lettre de clef (convention de tout le TP).
     """
     if not cle:
         raise ValueError("la clef ne peut pas être vide")
+    cle = cle.upper()
     chiffre = ""
     rang_clef = 0
     for caractere in texte.upper():
@@ -67,9 +59,10 @@ def vigenere_chiffrer(texte, cle):
 
 
 def vigenere_dechiffrer(texte_chiffre, cle):
-    """Solution B.2 — le même parcours, avec le décalage opposé."""
+    """Solution B.2 — la même boucle, avec le décalage opposé."""
     if not cle:
         raise ValueError("la clef ne peut pas être vide")
+    cle = cle.upper()
     clair = ""
     rang_clef = 0
     for caractere in texte_chiffre.upper():
@@ -83,12 +76,12 @@ def vigenere_dechiffrer(texte_chiffre, cle):
 
 
 # ==========================================================================
-# PARTIE C
+# PARTIE C — CRYPTANALYSE
 # ==========================================================================
 
-def forcer_cesar_sur_colonne(colonne):
-    """Solution C.1 — on essaie les 26 décalages et l'on garde celui qui donne
-    le texte le plus proche des fréquences du français."""
+def decalage_probable(colonne):
+    """Solution C.1 — les 26 décalages possibles d'une colonne, et l'on garde
+    celui dont le texte déchiffré est le plus proche du français."""
     meilleur_decalage = 0
     meilleure_distance = None
     for decalage in range(26):
@@ -103,31 +96,12 @@ def forcer_cesar_sur_colonne(colonne):
     return meilleur_decalage
 
 
-def colonnes(texte, periode):
-    """Solution C.2."""
-    morceaux = ["" for _ in range(periode)]
-    for position, caractere in enumerate(texte):
-        morceaux[position % periode] += caractere
-    return morceaux
-
-
-def recoller(morceaux, periode):
-    """Solution C.3."""
-    total = sum(len(morceau) for morceau in morceaux)
-    texte = ""
-    for position in range(total):
-        colonne = position % periode
-        rang_dans_la_colonne = position // periode
-        texte += morceaux[colonne][rang_dans_la_colonne]
-    return texte
-
-
 def forcer_vigenere(texte_chiffre, periode):
-    """Solution C.4 — l'attaque complète, période connue.
+    """Solution C.2 — l'attaque complète, période connue.
 
     Les colonnes sont calculées sur le texte SANS espaces (puisque les espaces
     ne consomment pas de lettre de clef), puis les lettres déchiffrées sont
-    replacées dans la présentation du message chiffré.
+    replacées dans la présentation du message chiffré avec `rehabiller`.
     """
     lettres_chiffrees = vider_les_espaces(texte_chiffre)
     morceaux = colonnes(lettres_chiffrees, periode)
@@ -135,46 +109,46 @@ def forcer_vigenere(texte_chiffre, periode):
     cle = ""
     morceaux_clairs = []
     for morceau in morceaux:
-        decalage = forcer_cesar_sur_colonne(morceau)
+        decalage = decalage_probable(morceau)
         cle += ALPHABET[decalage]
-        morceaux_clairs.append("".join(decaler_lettre(c, -decalage) for c in morceau))
+        morceaux_clairs.append(
+            "".join(decaler_lettre(lettre, -decalage) for lettre in morceau)
+        )
 
     lettres_claires = recoller(morceaux_clairs, periode)
     return cle, rehabiller(texte_chiffre, lettres_claires)
 
 
-# ==========================================================================
-# PARTIE D
-# ==========================================================================
-
 def cle_par_texte_connu(message_clair, message_chiffre):
-    """Solution D.1."""
+    """Solution C.3 — clef = chiffré - clair, position par position.
+
+    Si les deux textes n'ont pas la même longueur (l'agent n'a photographié
+    qu'un fragment), on compare seulement le début commun : c'est la longueur
+    du plus court qui commande.
+    """
     clair = vider_les_espaces(message_clair)
     chiffre = vider_les_espaces(message_chiffre)
-    if len(clair) != len(chiffre):
-        raise ValueError(
-            "les deux messages doivent avoir le même nombre de lettres "
-            f"({len(clair)} lettres en clair, {len(chiffre)} lettres chiffrées)"
-        )
+    longueur = min(len(clair), len(chiffre))
 
-    lettres_clef = ""
-    for position in range(len(clair)):
+    suite = ""
+    for position in range(longueur):
         decalage = (indice_de_la_lettre(chiffre[position])
                     - indice_de_la_lettre(clair[position])) % 26
-        lettres_clef += ALPHABET[decalage]
+        suite += ALPHABET[decalage]
 
-    for periode in range(1, len(lettres_clef) + 1):
-        repetee = all(
-            lettres_clef[position] == lettres_clef[position + periode]
-            for position in range(len(lettres_clef) - periode)
-        )
-        if repetee:
-            return lettres_clef[:periode]
-    return lettres_clef
+    for periode in range(1, len(suite) + 1):
+        tout_bon = True
+        for position in range(len(suite) - periode):
+            if suite[position] != suite[position + periode]:
+                tout_bon = False
+                break
+        if tout_bon:
+            return suite[:periode]
+    return suite
 
 
 # ==========================================================================
-# PARTIE E — constantes (remplies par outils/generer_messages.py)
+# MESSAGES INTERCEPTÉS (remplis par outils/generer_messages.py)
 # ==========================================================================
 
 # --- DÉBUT DE LA ZONE GÉNÉRÉE (outils/generer_messages.py) ---
@@ -188,6 +162,8 @@ MESSAGE_VIGENERE_1 = (
     "W OVNQKQFBQX XO ILI PS ARW CINUXUSEV TAIE GI XCAJYQG NQRQSF."
 )
 
+PERIODE_1 = 5
+
 MESSAGE_VIGENERE_2 = (
     "XE WQEIGFENZ QY TARM I EIGG NHBEI PQTMZR. MP DEIWAH UGE EMF XV"
     "MVTCK HI PRTONKI OOFURRGQRHVG EY PEUCG HY YOBA CVSOHTQA IX CUX"
@@ -197,20 +173,34 @@ MESSAGE_VIGENERE_2 = (
     "VFEFXEL LH QMZILBRVI."
 )
 
-PERIODE_1 = 5
-
 PERIODE_2 = 7
+
+MESSAGE_URGENT = (
+    "DI RIIYWX C IIVM RQKVX VIRVGAW. MN FVWGRPV UNW PG TSGNSK GEKLI"
+    " EVXMW RWZX ISV NR VHMXG UI ES GQKI, XF IXZXTFX NVW OAPNRKXK. "
+    "PGJ GAWZCLB LWVQEX VZEPXIL S PC WIKEI FL QHMPKE. P TDITKI LWVC"
+    " USGFIG RY IGWVV HX YETUI TNEPK QBVM, GK GX HERZIK KITR FKMPG "
+    "RYLKMVFX ES PGTXNJI VVVFARGV. WB DE TFYMW IUK GHMTGV, ME XEWK "
+    "TTKWGI TTJ PG TLXEMP UI ES ZCCPXJMG VX TLXGEHKW PC EYBL TQLV M"
+    "JEXVVLWV NV THFX FV TBWVTV. PXK LQDQXK HW IIESMU FRM VIU DSGLY"
+    "TVW YJEKTLXK IV UY ISMP GSNJ PC ISNLI. KC RX XEWK TTJPGI E IWV"
+    "UFRGW EXRRM DE RFVMW HG CE OAPNV, IM JIOVXMJI NV TEA EW TLXX H"
+    "W GSLLI, SLM LWYN TSGFEKK PX ESV UI ISWUV."
+)
+
+PERIODE_URGENT = 6
+
+MESSAGE_INTERCEPTE = (
+    "GIJLEIVYYFTXOITPASMXIWLQVVMPSEPXMLGIXYVNSEMKMXPROHMMZMNIBOPJZV"
+    "TPNEKMBLTRZEZPNYGSZOCIYIXLDWZVIFWEMKMOPWDPMDPXYIVPAENVMAZRYVML"
+    "FBNMOYLYSHMWLGJXMWLQZVMDEGVPUPWIQIVEGMZRBOFRJVLPDXGIDZJEBILFCI"
+    "MELPFBESCCDIOHMFIRPMBDLPVVZTGIZPMATPJXMLEXZRLCLPZFIEPEPHIYDPVT"
+    "IDDIYYAFOIOJMCLQJRBPCEWSZOOIPBPZXQZWLPNSIJQLYGZEDPNHZWXLAMZVAP"
+    "EHZWKLCXZW"
+)
+
+TEXTE_CONNU = (
+    "LEBATEAUQUITTELEPORTALAMAREEHAUTEAVECUNCHARGEMENTDEBOISETDEFER"
+    "LECAPITAIN"
+)
 # --- FIN DE LA ZONE GÉNÉRÉE ---
-
-
-if __name__ == "__main__":
-    print("A.1", indice_de_la_lettre("M"), "| A.2", decaler_lettre("A", -1),
-          "| A.3", vider_les_espaces("Bonjour, l'ami !"))
-    print("B.1", vigenere_chiffrer("BONJOUR LE MONDE", "CLE"))
-    print("B.2", vigenere_dechiffrer("DZRLZYT WI OZRFP", "CLE"))
-    print("D.1", cle_par_texte_connu("BONJOUR", "DZRLZYT"))
-    if MESSAGE_VIGENERE_1:
-        cle, clair = forcer_vigenere(MESSAGE_VIGENERE_1, PERIODE_1)
-        print("E.1 clef", cle, "->", clair[:70], "...")
-        cle, clair = forcer_vigenere(MESSAGE_VIGENERE_2, PERIODE_2)
-        print("E.2 clef", cle, "->", clair[:70], "...")

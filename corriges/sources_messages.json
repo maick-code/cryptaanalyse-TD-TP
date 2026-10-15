@@ -79,5 +79,58 @@
     "preparation": "nettoyer",
     "clair": "LE TRAIN EST EN RETARD, IL EST TARD ET LE SOLEIL DONNE DANS LES TERRES. LES ETOILES SORTENT TRES TARD.",
     "commentaire": "Message écrit AVEC LES 10 LETTRES DU DAMIER (S E N A T R O I D L) et de longueur multiple de 10 : c'est la règle du VIC. Le script vérifie cette contrainte et indique combien de lettres ajouter ou retirer."
+  },
+  "tp1_mystere1": {
+    "methode": "scytale",
+    "cle": 6,
+    "preparation": "nettoyer",
+    "clair": "LE COLIS ARRIVE PAR LE TRAIN DE NUIT ET REPART AU MATIN AVEC LE COURRIER",
+    "commentaire": "Message mystère n° 1 : chiffré par scytale. « preparation » vaut nettoyer, donc le texte clair attendu est sans espaces ni ponctuation : l'étudiant doit travailler sur les lettres seules."
+  },
+  "tp1_mystere2": {
+    "methode": "cesar",
+    "cle": 11,
+    "preparation": "nettoyer",
+    "clair": "LE BATIMENT EST RESTE FERME TOUT L HIVER ET LES TRAVAUX ONT REPRIS AU PRINTEMPS",
+    "commentaire": "Message mystère n° 2 : chiffré par César (décalage 11). La preuve que c'est bien du César : un seul décalage ramène les fréquences sur celles du français."
+  },
+  "tp1_mystere3": {
+    "methode": "scytale",
+    "cle": 5,
+    "preparation": "nettoyer",
+    "clair": "LE MESSAGER ATTEND DEVANT LA PORTE DU JARDIN DEPUIS UNE HEURE ENTIERE",
+    "commentaire": "Message mystère n° 3 : chiffré par scytale, avec une autre clef. Deux des trois messages mystères sont des scytales : l'étudiant ne doit pas deviner d'après l'ordre, mais mesurer."
+  },
+  "tp2_urgent": {
+    "methode": "vigenere",
+    "cle": "SECRET",
+    "preparation": "majuscules",
+    "clair": "LE PREFET A RECU NOTRE DEPECHE. IL ORDONNE QUE LE CONVOI PARTE CETTE NUIT PAR LA ROUTE DE LA COTE, EN EVITANT LES VILLAGES. LES CHEVAUX SERONT CHANGES A LA FERME DU MOULIN. L ALERTE SERA DONNEE AU POSTE DE GARDE AVANT MIDI, ET CE PAPIER SERA BRULE AUSSITOT LA LECTURE TERMINEE. SI LA ROUTE EST COUPEE, IL FAUT PASSER PAR LE CHEMIN DE LA VALLERIE ET ATTENDRE LA NUIT POUR TRAVERSER LE PONT DE PIERRE. LES HOMMES DU RELAIS ONT DES MONTURES FRAICHES ET DU PAIN POUR LA ROUTE. IL NE FAUT PARLER A PERSONNE AVANT LA PORTE DE LA VILLE, ET REMETTRE LE PLI AU CHEF DU POSTE, QUI SEUL CONNAIT LE MOT DE PASSE.",
+    "commentaire": "Dépêche inédite de la partie CRYPTANALYSE du TP 2 (472 lettres, clef SECRET, période 6 donnée aux étudiants : PERIODE_URGENT). ATTENTION si vous la réécrivez : un texte qui concentre beaucoup de lettres rares dans une même colonne (par exemple des « Z » de terminaisons en -EZ, -AUREZ) fait échouer l'attaque par khi-deux sur cette colonne. C'est d'ailleurs une bonne leçon à montrer aux étudiants : ce n'est pas le programme qui est faux, c'est l'échantillon qui est trop pauvre."
+  },
+  "tp2_connu": {
+    "methode": "vigenere",
+    "cle": "VEILLE",
+    "preparation": "nettoyer",
+    "longueur": 320,
+    "fragment": 72,
+    "clair": "LE BATEAU QUITTE LE PORT A LA MAREE HAUTE AVEC UN CHARGEMENT DE BOIS ET DE FER. LE CAPITAINE A RECU L ORDRE DE PASSER AU LARGE DES ILES ET DE NE PAS REPONDRE AUX SIGNAUX DE LA COTE. LA MER EST CALME, LE VENT VIENT DU NORD EST, LE VOYAGE DURERA DEUX JOURS ET DEUX NUITS. A L ARRIVEE, LE PILOTE ATTENDRA LE BATEAU DANS LA PASSE DU SUD ET FERA MONTER A BORD DEUX HOMMES DE CONFIANCE AVEC DES PAPIERS ET DES CARTES.",
+    "commentaire": "Attaque à texte connu : les étudiants reçoivent MESSAGE_INTERCEPTE (chiffré, 320 lettres) et TEXTE_CONNU, les 72 premières lettres du clair (un agent a pu photographier le début du rapport). 72 lettres pour une clef de 6 lettres : largement assez pour retrouver la période de la suite des décalages."
+  },
+  "tp3_nouveau1": {
+    "methode": "vigenere",
+    "cle": "BOUSSOLE",
+    "preparation": "nettoyer",
+    "longueur": 540,
+    "clair": "QUAND LA NUIT TOMBE SUR LA VILLE, LES LAMPES S ALLUMENT UNE A UNE LE LONG DES QUAIS ET LE PORT CHANGE DE VISAGE. LES GRUES IMMOBILES DESSINENT DES OMBRES LONGUES SUR LES ENTREPOTS, ET L ON ENTEND SEULEMENT LE CLAPOTIS DE L EAU CONTRE LES COQUES. UN VIEIL HOMME PASSE AVEC UN CHIEN, S ARRETE UN INSTANT POUR REGARDER LES FEUX DES BATEAUX AU LARGE, PUIS CONTINUE SON CHEMIN SANS RIEN DIRE. DANS LES BUREAUX DU PORT, UNE LAMPE BRULE ENCORE : UN EMPLOYE CLASSE DES PAPIERS, COTE PAR COTE, COMME ON ALIGNE DES LETTRES SUR UNE PAGE. IL NOTE DANS UN CAHIER LES ARRIVEES DU JOUR, LES DEPARTS DU LENDEMAIN, LE NOM DES BATEAUX ET LA NATURE DES MARCHANDISES. PLUS TARD, QUAND TOUT SERA SILENCIEUX, IL SORTIRA PAR LA PETITE PORTE ET REGAGNERA SA MAISON EN LONGEANT LE CANAL. DEMAIN, AVANT LE LEVER DU JOUR, LES CAMIONS SERONT LA, LES HOMMES AUSSI, ET LA JOURNEE RECOMMENCERA COMME TOUTES LES AUTRES.",
+    "commentaire": "Troisième dépêche, à période INCONNUE (clef BOUSSOLE, 8 lettres). Elle sert d'exercice complet : indice de coïncidence, puis attaque colonne par colonne."
+  },
+  "tp3_nouveau2": {
+    "methode": "vigenere",
+    "cle": "ORAGE",
+    "preparation": "nettoyer",
+    "longueur": 300,
+    "clair": "LE TRAIN EST ENTRE EN GARE AVEC UNE HEURE DE RETARD. SUR LE QUAI, LES VOYAGEURS S IMPATIENTENT, LES PORTEURS CHERCHENT LEURS CLIENTS, ET UN EMPLOYE ANNONCE D UNE VOIX LASSE QUE LE DEPART AURA LIEU DANS VINGT MINUTES. PERSONNE NE SEMBLE L ECOUTER. DANS LE BUREAU DU CHEF DE GARE, ON CLASSE DES TELEGRAMMES PAR ORDRE D ARRIVEE : CELUI DE CE MATIN VIENT DE LA COTE, IL PARLE DE MARCHANDISES ET DE PAPIERS, ET IL EST SIGNE D UN NOM QUE PERSONNE NE RECONNAIT ICI.",
+    "commentaire": "Quatrième dépêche, plus courte (300 lettres) et donc plus difficile : l'indice de coïncidence y est plus bruité. Clef ORAGE (5 lettres)."
   }
 }

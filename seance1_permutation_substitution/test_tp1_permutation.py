@@ -8,6 +8,11 @@ Pour vérifier votre travail, tapez dans un terminal, dans ce dossier :
 Chaque épreuve réussie s'affiche « [OK] », chaque épreuve ratée « [ÉCHEC] »
 avec l'explication.  Relancez autant de fois que vous voulez : c'est en
 essayant, en se trompant, puis en comprenant l'erreur, que l'on apprend.
+
+Les épreuves de la partie C sont celles de la CRYPTANALYSE : elles vérifient que
+vous avez retrouvé la méthode, la clef ET le texte des messages interceptés.  Le
+fichier ne contient que des EMPREINTES de ces réponses : vous ne pouvez donc pas
+tricher en le lisant, et c'est tant mieux.
 ==========================================================================
 """
 
@@ -25,6 +30,7 @@ from outils.verif import charger_module, empreinte, epreuve, lancer  # noqa: E40
 tp = charger_module("tp1_permutation")
 
 from common import comptage, scytale_chiffrer  # noqa: E402
+from outils.reference import cesar_chiffrer, vider_les_espaces  # noqa: E402
 
 # --- DÉBUT DE LA ZONE GÉNÉRÉE (outils/generer_messages.py) ---
 EMPREINTES = {
@@ -32,42 +38,81 @@ EMPREINTES = {
         "longueur": 66,
         "texte": "5b701cd32afc4005c0d3bd2b5319aeea3d35879c3474f9011dd6580f82d9424b",
         "cle": "2c624232cdd221771294dfbb310aca000a0df6ac8b66b696d90ef06fdefb64a3",
+        "methode": "27852a0d8891ba12730e3835c4d5bbdb6f16fa4faf42529dc826394064861ff1",
     },
     "cesar": {
         "longueur": 72,
         "texte": "bf20ebe9bc9d560f0885e9fe19b65d61c112b310b4dbd749b6a4ed19c76e04df",
         "cle": "4523540f1504cd17100c4835e85b7eefd49911580f8efff0599a8f283be6b9e3",
+        "methode": "9719afb6914cede56aa9e49c32f6e7aa053303b32b37e307bdfa337b54594a82",
+    },
+    "mystere1": {
+        "longueur": 58,
+        "texte": "e6f7aa6ac3d27e059fefc0dd060587f00c19ace8b9106f266af852b9e679dbe0",
+        "cle": "e7f6c011776e8db7cd330b54174fd76f7d0216b612387a5ffcfb81e6f0919683",
+        "methode": "27852a0d8891ba12730e3835c4d5bbdb6f16fa4faf42529dc826394064861ff1",
+    },
+    "mystere2": {
+        "longueur": 65,
+        "texte": "3944ec9d6b2275b3ada61d2f530687779e008ed9e0c5c932ed10cefe5f9b80b8",
+        "cle": "4fc82b26aecb47d2868c4efbe3581732a3e7cbcc6c2efb32062c08170a05eeb8",
+        "methode": "9719afb6914cede56aa9e49c32f6e7aa053303b32b37e307bdfa337b54594a82",
+    },
+    "mystere3": {
+        "longueur": 58,
+        "texte": "585746924f8be757402f34183de433f0275038f38d7965f76b204f814bb17a1c",
+        "cle": "ef2d127de37b942baad06145e54b0c619a1f22327b2ebbcfbec78f5564afe39d",
+        "methode": "27852a0d8891ba12730e3835c4d5bbdb6f16fa4faf42529dc826394064861ff1",
     },
 }
 # --- FIN DE LA ZONE GÉNÉRÉE ---
 
 
+def _verifier_message(nom, methode, cle, texte):
+    """Compare une attaque aux empreintes du professeur, avec des messages clairs.
+
+    `nom` est le nom de l'entrée dans EMPREINTES, `methode` vaut "SCYTALE",
+    "CESAR" ou None (quand la méthode n'est pas demandée).
+    """
+    attendu = EMPREINTES[nom]
+    assert attendu["longueur"] > 0, (
+        "les empreintes n'ont pas été générées : lancez "
+        "« python3 outils/generer_messages.py » (réservé au professeur)"
+    )
+
+    if methode is not None:
+        assert empreinte(methode) == attendu["methode"], (
+            f"vous proposez la méthode {methode}, ce n'est pas la bonne.\n"
+            "  Réfléchissez : le chiffrement a-t-il REMPLACÉ les lettres (César, "
+            "qui déplace les fréquences)\n"
+            "  ou seulement DÉPLACÉ les lettres sans les changer (scytale, "
+            "fréquences identiques) ?\n"
+            "  Comparez les deux candidats avec vraisemblance(...) : le plus "
+            "grand gagne."
+        )
+
+    assert empreinte(cle) == attendu["cle"], (
+        f"la clef trouvée est fausse (vous proposez {cle!r}).\n"
+        "  Pour la scytale : avez-vous bien pris la clef qui donne le texte "
+        "ressemblant le plus à du français ?\n"
+        "  Pour César : la bonne clef est celle dont la distance au français "
+        "est la PLUS PETITE."
+    )
+
+    texte = texte[: attendu["longueur"]]
+    assert empreinte(texte) == attendu["texte"], (
+        "la clef est la bonne, mais le texte déchiffré ne correspond pas.\n"
+        f"  votre déchiffrement commence par : {texte[:60]}...\n"
+        "  (pour la scytale, les X de complément à la fin du message sont "
+        "normaux : on les ignore)"
+    )
+
+
 # ==========================================================================
-# PARTIE A — préparer le texte
+# § B — le code à écrire
 # ==========================================================================
 
-@epreuve("A.1", "nettoyer_simple()")
-def test_nettoyer_simple():
-    """Le texte doit être mis en majuscules et perdre tout ce qui n'est pas A...Z."""
-    resultat = tp.nettoyer_simple("Bonjour, le monde !")
-    assert resultat == "BONJOURLEMONDE", (
-        f'pour "Bonjour, le monde !" on attendait "BONJOURLEMONDE", '
-        f"on obtient {resultat!r}"
-    )
-
-    resultat = tp.nettoyer_simple("Le chat mange, en 2026.")
-    assert resultat == "LECHATMANGEEN", (
-        f'pour "Le chat mange, en 2026." on attendait "LECHATMANGEEN", '
-        f"on obtient {resultat!r}"
-    )
-
-    resultat = tp.nettoyer_simple("DEJA PROPRE")
-    assert resultat == "DEJAPROPRE", (
-        f'pour "DEJA PROPRE" on attendait "DEJAPROPRE", on obtient {resultat!r}'
-    )
-
-
-@epreuve("A.2", "compter_lettres()")
+@epreuve("B.1", "compter_lettres()")
 def test_compter_lettres():
     """Le comptage doit donner les 26 lettres, avec les bonnes valeurs."""
     resultat = tp.compter_lettres("BONJOUR")
@@ -80,117 +125,20 @@ def test_compter_lettres():
         f'la lettre A est absente, on attendait 0, on obtient {resultat["A"]}'
     )
     assert sum(resultat.values()) == 7, (
-        f"le total des comptes doit être 7 (le mot BONJOUR a 7 lettres), "
-        f'on obtient {sum(resultat.values())}'
+        f"le total des comptes doit être 7 (BONJOUR a 7 lettres), "
+        f"on obtient {sum(resultat.values())}"
     )
 
-    # Les minuscules comptent comme des majuscules, la ponctuation ne compte pas.
     resultat = tp.compter_lettres("a b, a !")
     assert resultat["A"] == 2 and resultat["B"] == 1, (
         'pour "a b, a !" on attendait 2 lettres A et 1 lettre B, '
-        f'on obtient A = {resultat["A"]} et B = {resultat["B"]}'
-    )
-
-    # Cohérence avec l'outil comptage() fourni par le professeur.
-    outil = comptage("LE MESSAGE ARRIVE CE SOIR")
-    resultat = tp.compter_lettres("LE MESSAGE ARRIVE CE SOIR")
-    assert resultat == outil, (
-        "le résultat diffère de celui de l'outil comptage() fourni :\n"
-        f"  vôtre  : {resultat}\n  attendu : {outil}"
+        f'on obtient {resultat["A"]} et {resultat["B"]}'
     )
 
 
-# ==========================================================================
-# PARTIE B — scytale et son attaque
-# ==========================================================================
-
-@epreuve("B.1", "cle_scytale_possibles()")
-def test_cle_scytale_possibles():
-    """Les clefs proposées doivent diviser la longueur et laisser au moins 5 lignes."""
-    for longueur, attendu in [
-        (40, [2, 4, 5, 8]),
-        (60, [2, 3, 4, 5, 6, 10, 12]),
-        (35, [5, 7]),
-        (10, [2]),
-        (9, []),
-    ]:
-        resultat = list(tp.cle_scytale_possibles(longueur))
-        assert resultat == attendu, (
-            f"pour une longueur de {longueur} on attendait {attendu}, "
-            f"on obtient {resultat}"
-        )
-
-
-@epreuve("B.2", "decouper_en_morceaux()")
-def test_decouper_en_morceaux():
-    """Le découpage doit respecter la taille demandée et le dernier morceau."""
-    for texte, taille, attendu in [
-        ("ABCDEFGH", 3, ["ABC", "DEF", "GH"]),
-        ("ABCDEF", 3, ["ABC", "DEF"]),
-        ("AB", 5, ["AB"]),
-        ("", 4, []),
-        ("ABCDE", 1, ["A", "B", "C", "D", "E"]),
-    ]:
-        resultat = list(tp.decouper_en_morceaux(texte, taille))
-        assert resultat == attendu, (
-            f"pour {texte!r} découpé par {taille} on attendait {attendu}, "
-            f"on obtient {resultat}"
-        )
-
-
-@epreuve("B.3", "attaque_scytale()")
-def test_attaque_scytale():
-    """L'attaque doit retrouver la clef et le message, sans la connaître."""
-    essais = [
-        ("LERENDEZVOUSESTFIXEAMIDI", 4),
-        ("LEGRANDMESSAGERARRIVECETTEAPRESMIDI", 7),
-        ("NOUSPARTONSDEMAINMATINAVECLEGROUPEENTIER", 5),
-    ]
-    for message, cle in essais:
-        chiffre = scytale_chiffrer(message, cle)
-        resultat = tp.attaque_scytale(chiffre)
-        cle_trouvee, texte_trouve = resultat
-        assert cle_trouvee == cle, (
-            f"la clef utilisée était {cle}, votre attaque propose {cle_trouvee}\n"
-            f"  texte chiffré : {chiffre}"
-        )
-        assert texte_trouve[:len(message)] == message, (
-            f"la clef {cle} est bien trouvée, mais le texte déchiffré ne "
-            f"correspond pas :\n  attendu : {message}\n  obtenu  : {texte_trouve}"
-        )
-
-
-@epreuve("B.4", "le message scytale du TP est déchiffré")
-def test_message_scytale_du_tp():
-    """Le message MESSAGE_SCYTALE de votre fichier doit être déchiffré correctement."""
-    if not hasattr(tp, "MESSAGE_SCYTALE"):
-        raise AssertionError("la constante MESSAGE_SCYTALE a disparu de votre fichier")
-
-    longueur = EMPREINTES["scytale"]["longueur"]
-    cle, texte = tp.attaque_scytale(tp.MESSAGE_SCYTALE)
-    assert longueur > 0, (
-        "les empreintes n'ont pas été générées : lancez "
-        "« python3 outils/generer_messages.py » (réservé au professeur)"
-    )
-    assert empreinte(cle) == EMPREINTES["scytale"]["cle"], (
-        f"la clef trouvée pour MESSAGE_SCYTALE est fausse (vous proposez {cle}). "
-        "Avez-vous bien pris la clef qui donne le texte ressemblant le plus à "
-        "du français ?"
-    )
-    assert empreinte(texte[:longueur]) == EMPREINTES["scytale"]["texte"], (
-        "la clef est la bonne, mais le message déchiffré ne correspond pas.\n"
-        f"  votre déchiffrement commence par : {texte[:60]}...\n"
-        "  (les X de complément en fin de message sont normaux, on les ignore)"
-    )
-
-
-# ==========================================================================
-# PARTIE C — César
-# ==========================================================================
-
-@epreuve("C.1", "cesar_chiffrer()")
+@epreuve("B.2", "cesar_chiffrer()")
 def test_cesar_chiffrer():
-    """Le décalage doit se faire modulo 26, en conservant les autres caractères."""
+    """Le décalage se fait modulo 26, en conservant les autres caractères."""
     for texte, cle, attendu in [
         ("AVE", 3, "DYH"),
         ("BONJOUR, LE MONDE", 3, "ERQMRXU, OH PRQGH"),
@@ -201,106 +149,156 @@ def test_cesar_chiffrer():
     ]:
         resultat = tp.cesar_chiffrer(texte, cle)
         assert resultat == attendu, (
-            f"cesar_chiffrer({texte!r}, {cle}) : attendu {attendu!r}, "
-            f"obtenu {resultat!r}"
+            f"pour {texte!r} avec la clef {cle}, on attendait {attendu!r}, "
+            f"on obtient {resultat!r}"
         )
 
 
-@epreuve("C.2", "cesar_dechiffrer()")
+@epreuve("B.3", "cesar_dechiffrer()")
 def test_cesar_dechiffrer():
-    """Le déchiffrement doit être exactement l'opération inverse du chiffrement."""
-    assert tp.cesar_dechiffrer("ERQMRXU, OH PRQGH", 3) == "BONJOUR, LE MONDE", (
-        "cesar_dechiffrer('ERQMRXU, OH PRQGH', 3) devrait valoir "
-        "'BONJOUR, LE MONDE'"
-    )
-    assert tp.cesar_dechiffrer("ABC", 3) == "XYZ"
-
-    message = "LE MESSAGE ARRIVE CE SOIR, PREPAREZ LA RECEPTION"
-    for cle in range(26):
-        chiffre = tp.cesar_chiffrer(message, cle)
-        clair = tp.cesar_dechiffrer(chiffre, cle)
-        assert clair == message, (
-            f"pour la clef {cle}, on chiffre puis on déchiffre, et l'on ne "
-            f"retrouve pas le message :\n  attendu : {message}\n  obtenu  : {clair}\n"
-            "  c'est la définition même d'un code : d_k(e_k(x)) = x !"
-        )
+    """Déchiffrer doit défaire exactement le chiffrement."""
+    for texte in ["BONJOUR, LE MONDE", "AVE CESAR", "ZZZ", "L'AMI ARRIVE"]:
+        for cle in range(26):
+            chiffre = cesar_chiffrer(texte, cle)
+            resultat = tp.cesar_dechiffrer(chiffre, cle)
+            assert resultat == texte, (
+                f"après chiffrement avec la clef {cle}, on attendait {texte!r}, "
+                f"on obtient {resultat!r}"
+            )
 
 
-@epreuve("C.3", "forcer_cesar()")
-def test_forcer_cesar():
-    """La clef doit être retrouvée automatiquement, sans être donnée."""
+# ==========================================================================
+# § C — ★ CRYPTANALYSE ★
+# ==========================================================================
+
+@epreuve("C.1", "attaque_scytale()")
+def test_attaque_scytale():
+    """L'attaque doit retrouver la clef et le message, sans la connaître."""
     essais = [
-        ("LE GRAND MESSAGE ARRIVE CE SOIR, LA MISSION EST EN COURS", 3),
-        ("NOUS PARTONS DEMAIN MATIN A SEPT HEURES POUR LA COTE OUEST", 17),
-        ("CE SOIR NOUS MANGEONS DU POISSON ET DES LEGUMES DU JARDIN", 11),
+        ("LERENDEZVOUSESTFIXEAMIDI", 4),
+        ("LEGRANDMESSAGERARRIVECETTEAPRESMIDI", 7),
+        ("NOUSPARTONSDEMAINMATINAVECLEGROUPEENTIER", 3),
     ]
     for message, cle in essais:
-        chiffre = tp.cesar_chiffrer(message, cle)
-        resultat = tp.forcer_cesar(chiffre)
-        cle_trouvee, texte_trouve = resultat
+        chiffre = scytale_chiffrer(message, cle)
+        cle_trouvee, texte_trouve = tp.attaque_scytale(chiffre)
         assert cle_trouvee == cle, (
-            f"la clef utilisée était {cle}, votre programme propose {cle_trouvee}\n"
+            f"la clef utilisée était {cle}, votre attaque propose {cle_trouvee}\n"
+            f"  texte chiffré : {chiffre}"
+        )
+        assert texte_trouve[:len(message)] == message, (
+            f"la clef {cle} est bien trouvée, mais le texte déchiffré ne "
+            f"correspond pas :\n  attendu : {message}\n  obtenu  : {texte_trouve}"
+        )
+
+
+@epreuve("C.2", "forcer_cesar()")
+def test_forcer_cesar():
+    """Les 26 clefs doivent être essayées, et la bonne reconnue."""
+    essais = [
+        ("LE MESSAGE ARRIVE CE SOIR", 19),
+        ("LE CONVOI PART DEMAIN MATIN A L AUBE", 3),
+        ("RENDEZ VOUS AU PORT A MIDI AVEC LE COLIS DE LA VEUVE ET LE COURRIER", 22),
+        ("TOUT EST CALME SUR LE FRONT", 0),
+    ]
+    for message, cle in essais:
+        chiffre = cesar_chiffrer(message, cle)
+        cle_trouvee, texte_trouve = tp.forcer_cesar(chiffre)
+        assert cle_trouvee == cle, (
+            f"la clef utilisée était {cle}, votre attaque propose {cle_trouvee}\n"
             f"  texte chiffré : {chiffre}"
         )
         assert texte_trouve == message, (
-            f"la clef {cle} est bonne mais le texte ne l'est pas :\n"
-            f"  attendu : {message}\n  obtenu  : {texte_trouve}"
+            f"la clef {cle} est bien trouvée, mais le texte déchiffré ne "
+            f"correspond pas :\n  attendu : {message}\n  obtenu  : {texte_trouve}"
         )
 
 
-@epreuve("C.4", "le message César du TP est déchiffré")
-def test_message_cesar_du_tp():
-    """Le message MESSAGE_CESAR de votre fichier doit être déchiffré correctement."""
-    if not hasattr(tp, "MESSAGE_CESAR"):
-        raise AssertionError("la constante MESSAGE_CESAR a disparu de votre fichier")
+@epreuve("C.3", "identifier_et_dechiffrer()")
+def test_identifier_et_dechiffrer():
+    """Les deux méthodes doivent être essayées, et la bonne reconnue."""
+    essais = [
+        ("scytale", 4, "LE MESSAGER ARRIVE AU VILLAGE AVANT LA NUIT ET REPART AU MATIN"),
+        ("cesar", 19, "LE MESSAGE ARRIVE CE SOIR A DIX HEURES DEVANT LA PORTE"),
+        ("scytale", 3, "LE TRAIN PART A MIDI ET LE COURRIER SUIT LA ROUTE DE LA VALLEE"),
+        ("cesar", 13, "ATTENTION AUX VOITURES SUR LA ROUTE DE LA COTE CE MATIN"),
+    ]
+    for methode, cle, message in essais:
+        # La fonction travaille sur les lettres seules : les espaces et la
+        # ponctuation sont donc considérés comme absents.
+        message_propre = vider_les_espaces(message)
+        if methode == "scytale":
+            chiffre = scytale_chiffrer(message_propre, cle)
+        else:
+            chiffre = cesar_chiffrer(message_propre, cle)
 
-    longueur = EMPREINTES["cesar"]["longueur"]
+        resultat = tp.identifier_et_dechiffrer(chiffre)
+        assert isinstance(resultat, tuple) and len(resultat) == 3, (
+            "la fonction doit renvoyer TROIS valeurs : la méthode, la clef et "
+            "le texte\n  par exemple : return (\"CESAR\", cle, texte)\n"
+            f"  on obtient : {resultat!r}"
+        )
+        methode_trouvee, cle_trouvee, texte_trouve = resultat
+        assert methode_trouvee == methode.upper(), (
+            f"le message a été chiffré par {methode.upper()}, votre fonction "
+            f"propose {methode_trouvee!r}\n  texte chiffré : {chiffre}\n"
+            "  Rappel : comparez les DEUX candidats avec vraisemblance(...)."
+        )
+        assert cle_trouvee == cle, (
+            f"la méthode est reconnue ({methode.upper()}), mais la clef est "
+            f"fausse : vous proposez {cle_trouvee}, la bonne est {cle}\n"
+            f"  texte chiffré : {chiffre}"
+        )
+        assert texte_trouve[:len(message_propre)] == message_propre, (
+            "la méthode et la clef sont bonnes, mais le texte non :\n"
+            f"  attendu (sans espaces) : {message_propre}\n"
+            f"  obtenu                 : {texte_trouve}\n"
+            "  Rappel : identifier_et_dechiffrer travaille sur les lettres seules, "
+            "elle renvoie donc aussi un texte sans espaces."
+        )
+
+
+@epreuve("C.4", "le message MESSAGE_SCYTALE est déchiffré")
+def test_message_scytale():
+    """Premier message intercepté : une scytale, clef inconnue."""
+    assert hasattr(tp, "MESSAGE_SCYTALE") and tp.MESSAGE_SCYTALE, (
+        "la constante MESSAGE_SCYTALE est vide ou a disparu de votre fichier : "
+        "ne modifiez pas la zone générée"
+    )
+    cle, texte = tp.attaque_scytale(tp.MESSAGE_SCYTALE)
+    _verifier_message("scytale", "SCYTALE", cle, texte)
+
+
+@epreuve("C.5", "le message MESSAGE_CESAR est déchiffré")
+def test_message_cesar():
+    """Deuxième message intercepté : un César, clef inconnue."""
+    assert hasattr(tp, "MESSAGE_CESAR") and tp.MESSAGE_CESAR, (
+        "la constante MESSAGE_CESAR est vide ou a disparu de votre fichier : "
+        "ne modifiez pas la zone générée"
+    )
     cle, texte = tp.forcer_cesar(tp.MESSAGE_CESAR)
-    assert longueur > 0, (
-        "les empreintes n'ont pas été générées : lancez "
-        "« python3 outils/generer_messages.py » (réservé au professeur)"
-    )
-    assert empreinte(cle) == EMPREINTES["cesar"]["cle"], (
-        f"la clef trouvée pour MESSAGE_CESAR est fausse (vous proposez {cle}). "
-        "Cherchez la clef qui donne le texte le plus proche du français, "
-        "autrement dit la plus petite distance au français."
-    )
-    assert empreinte(texte[:longueur]) == EMPREINTES["cesar"]["texte"], (
-        "la clef est la bonne, mais le message déchiffré ne correspond pas.\n"
-        f"  votre déchiffrement commence par : {texte[:60]}..."
-    )
+    _verifier_message("cesar", "CESAR", cle, texte)
 
 
-# ==========================================================================
-# PARTIE D — historique et messages truqués
-# ==========================================================================
+@epreuve("C.6", "le message MESSAGE_MYSTERE_1 est déchiffré")
+def test_mystere1():
+    """Message mystère : la méthode elle-même est inconnue."""
+    methode, cle, texte = tp.identifier_et_dechiffrer(tp.MESSAGE_MYSTERE_1)
+    _verifier_message("mystere1", methode, cle, texte)
 
-@epreuve("D.1", "message_compromis()")
-def test_message_compromis():
-    """La comparaison doit ignorer espaces, casse et ponctuation."""
-    document = "XWWD TXH, O'DSSURFKH. ATTAQUE A L'AUBE, PREVENEZ LE BATELIER."
 
-    assert tp.message_compromis("ATTAQUE A L AUBE", document) is True, (
-        "la phrase « ATTAQUE A L'AUBE » se retrouve bien dans le document "
-        "intercepté : on attendait True"
-    )
-    assert tp.message_compromis("attaquons a l'aube", document) is False, (
-        "« ATTAQUONS A L'AUBE » ne se trouve PAS mot pour mot dans le document "
-        "(à cause du S et du N) : on attendait False"
-    )
-    assert tp.message_compromis("attaquons", document) is False, (
-        "« attaquons » n'est pas contenu dans le document : on attendait False"
-    )
-    assert tp.message_compromis("FUITE", document) is False, (
-        "« FUITE » ne se trouve pas dans le document : on attendait False"
-    )
-    assert tp.message_compromis("BATEAU", "XWWD. LE BATELIER PART DEMAIN") is False, (
-        "« BATEAU » ne se trouve pas dans « LE BATELIER PART DEMAIN » "
-        "(BATELIER n'est pas BATEAU) : on attendait False"
-    )
-    assert tp.message_compromis("batelier part", "xwwd. le batelier part demain") is True, (
-        "la casse et les espaces ne doivent pas gêner : on attendait True"
-    )
+@epreuve("C.7", "le message MESSAGE_MYSTERE_2 est déchiffré")
+def test_mystere2():
+    """Message mystère : la méthode elle-même est inconnue."""
+    methode, cle, texte = tp.identifier_et_dechiffrer(tp.MESSAGE_MYSTERE_2)
+    _verifier_message("mystere2", methode, cle, texte)
+
+
+@epreuve("C.8", "le message MESSAGE_MYSTERE_3 est déchiffré")
+def test_mystere3():
+    """Message mystère : la méthode elle-même est inconnue."""
+    methode, cle, texte = tp.identifier_et_dechiffrer(tp.MESSAGE_MYSTERE_3)
+    _verifier_message("mystere3", methode, cle, texte)
 
 
 if __name__ == "__main__":

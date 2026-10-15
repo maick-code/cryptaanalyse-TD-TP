@@ -43,10 +43,12 @@ __all__ = [
     "TEXTE_REFERENCE",
     "barres",
     "chi2",
+    "decalage_probable",
     "distance_au_francais",
     "frequences",
     "frequences_du_francais",
     "indice_de_coincidence",
+    "indices_par_periode",
     "tableau_lettres",
     "texte_reference",
     "vraisemblance",
@@ -362,6 +364,82 @@ def indice_de_coincidence(texte):
         comptes[lettre] += 1
     numerateur = sum(compte * (compte - 1) for compte in comptes.values())
     return numerateur / (n * (n - 1))                         # une probabilité
+
+
+# ---------------------------------------------------------------------------
+# 5. OUTILS FOURNIS POUR LE TP 3 (période d'un chiffre de Vigenère)
+# ---------------------------------------------------------------------------
+#
+# Ces deux fonctions sont des « gestes » de cryptanalyse déjà écrits.  Ils
+# utilisent les modèles du dessus (indice de coïncidence, distance au français)
+# et évitent de recopier du code d'un TP à l'autre.  Lisez-les : elles montrent
+# comment on découpe un texte en colonnes et comment on cherche un minimum.
+
+def indices_par_periode(texte, maximum=15):
+    """Tableau des indices de coïncidence moyens, pour chaque période de 1 à
+    `maximum`.
+
+        >>> indices = indices_par_periode("ABABABABABABABAB", 3)
+        >>> round(indices[2], 2)          # période 2 : deux colonnes "AAAA..."
+        1.0
+
+    Lecture du code :
+        * `_colonnes(texte, periode)` range le texte en colonnes (même idée que
+          dans `outils/reference.py`) ;
+        * on fait la moyenne des indices de coïncidence de ces colonnes ;
+        * un texte vide renvoie 0.0 : on évite ainsi la division par zéro.
+    """
+    resultat = {}
+    for periode in range(1, maximum + 1):
+        morceaux = _colonnes(texte, periode)
+        if not texte:
+            resultat[periode] = 0.0
+            continue
+        total = 0.0
+        for morceau in morceaux:
+            total += indice_de_coincidence(morceau)
+        resultat[periode] = total / len(morceaux)
+    return resultat
+
+
+def _colonnes(texte, periode):
+    """Range le texte en `periode` colonnes (version interne, sans import)."""
+    morceaux = ["" for _ in range(periode)]
+    for position, caractere in enumerate(texte):
+        morceaux[position % periode] += caractere
+    return morceaux
+
+
+def decalage_probable(colonne):
+    """Décalage de César le plus probable d'une colonne (entre 0 et 25).
+
+        >>> decalage_probable("DWRPHQ")
+        3
+
+    On essaie les 26 décalages, on déchiffre la colonne à chaque fois, et l'on
+    garde celui dont le résultat est le plus proche du français (distance
+    minimale).
+
+    Lecture du code :
+        * `for decalage in range(26)` : les 26 clefs possibles du code de César ;
+        * `ALPHABET[(ALPHABET.index(lettre) - decalage) % 26]` : le déchiffrement
+          de César, écrit directement pour ne pas dépendre de `reference.py` ;
+        * `meilleure_distance is None` : au premier tour, on n'a encore rien
+          trouvé, on prend donc la première valeur ; ensuite on ne remplace que
+          si l'on fait mieux (distance plus petite).
+    """
+    meilleur_decalage = 0
+    meilleure_distance = None
+    for decalage in range(26):
+        essai = ""
+        for lettre in colonne:
+            if lettre in ALPHABET:
+                essai += ALPHABET[(ALPHABET.index(lettre) - decalage) % 26]
+        distance = distance_au_francais(essai)
+        if meilleure_distance is None or distance < meilleure_distance:
+            meilleure_distance = distance
+            meilleur_decalage = decalage
+    return meilleur_decalage
 
 
 # ---------------------------------------------------------------------------

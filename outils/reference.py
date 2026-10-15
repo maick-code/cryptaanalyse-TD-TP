@@ -15,6 +15,11 @@ Pourquoi le lire ?  Parce que :
   3. le principe de Kerckhoffs dit que tout, sauf la clef, est public : ce
      fichier est donc public lui aussi, et c'est normal.
 
+La section 6 rassemble en plus des OUTILS FOURNIS (découpage en colonnes,
+comptage des répétitions de Kasiski, liste des diviseurs, etc.) : ils ne sont pas
+de la cryptographie, et vous les utilisez tout faits pour consacrer votre temps
+à la cryptanalyse elle-même.
+
 COMMENT LIRE LES COMMENTAIRES
 -----------------------------
 Un commentaire commence par un dièse (#) : Python l'ignore, il n'est là que
@@ -41,18 +46,28 @@ __all__ = [
     "ALPHABET_VIC",
     "afficher_comptage",
     "afficher_tableau_vic",
+    "caractere_vic",
     "cesar_chiffrer",
     "cesar_dechiffrer",
     "chiffrer_avec_damier",
     "chiffres_en_message",
+    "cle_scytale_possibles",
+    "colonnes",
     "comptage",
+    "decaler_lettre",
     "dechiffrer_avec_damier",
+    "decouper_en_morceaux",
     "deviner_ligne_vic",
+    "diviseurs",
+    "grammes_repetes",
+    "indice_de_la_lettre",
     "lettre_vic",
+    "ligne_du_damier",
     "message_en_chiffres",
     "nettoyer",
     "PERMUTATION_VIC",
     "permutation_inverse",
+    "recoller",
     "rehabiller",
     "retirer_cle",
     "scytale_chiffrer",
@@ -61,6 +76,7 @@ __all__ = [
     "transposition",
     "vic_chiffrer",
     "vic_dechiffrer",
+    "vider_les_espaces",
     "vigenere_chiffrer",
     "vigenere_dechiffrer",
 ]
@@ -705,6 +721,189 @@ def vic_dechiffrer(message, cle, permutation=PERMUTATION_VIC):
     chiffres = transposition(chiffres, permutation_inverse(list(permutation)))  # (3)
     chiffres = retirer_cle(chiffres, cle)                                    # (2)
     return chiffres_en_message(chiffres)                                     # (1)
+
+
+# ===========================================================================
+# 6. OUTILS FOURNIS POUR ALLER PLUS VITE (TP 2 et TP 3)
+# ===========================================================================
+#
+# Ces fonctions ne sont pas de la cryptographie : ce sont des « gestes de
+# rangement » dont on a besoin en permanence.  Elles sont déjà écrites pour que
+# vous puissiez consacrer votre temps à la partie intéressante : LA
+# CRYPTANALYSE.
+#
+# Prenez quand même le temps de les lire : elles montrent des tours de
+# programmation utiles (le modulo, la division entière, le découpage de texte).
+
+def indice_de_la_lettre(lettre):
+    """Rang d'une lettre : A -> 0, B -> 1, ..., Z -> 25.
+
+        >>> indice_de_la_lettre("A")
+        0
+        >>> indice_de_la_lettre("z")
+        25
+
+    Lecture du code : `.index()` cherche la position d'un caractère dans la
+    chaîne ALPHABET, et `.upper()` accepte les minuscules.
+    """
+    return ALPHABET.index(lettre.upper())
+
+
+def decaler_lettre(lettre, decalage):
+    """Renvoie la lettre décalée de `decalage` rangs, en tournant dans
+    l'alphabet (après Z on revient à A).
+
+        >>> decaler_lettre("A", 3)
+        'D'
+        >>> decaler_lettre("Z", 1)
+        'A'
+        >>> decaler_lettre("A", -1)
+        'Z'
+
+    Lecture du code : `% 26` range le résultat entre 0 et 25.  Avantage du
+    modulo de Python : il fonctionne aussi avec un décalage négatif, ce qui
+    permet de déchiffrer avec la même fonction qu'on chiffre.
+    """
+    return ALPHABET[(ALPHABET.index(lettre.upper()) + decalage) % 26]
+
+
+def vider_les_espaces(texte):
+    """Ne garde que les lettres A...Z, en majuscules (espaces et ponctuation
+    partent).
+
+        >>> vider_les_espaces("Bonjour, l'ami !")
+        'BONJOURLAMI'
+
+    C'est exactement ce que fait `nettoyer` plus haut ; ce nom-là dit mieux ce
+    que l'on fait quand on prépare un texte à être découpé en colonnes.
+    """
+    return nettoyer(texte)
+
+
+def colonnes(texte, periode):
+    """Range le texte en `periode` colonnes (voir le TP 2, exercice C.2).
+
+        >>> colonnes("ABCDEFGHIJ", 3)
+        ['ADGJ', 'BEH', 'CFI']
+
+    Lecture du code : `position % periode` donne le numéro de la colonne du
+    caractère situé à la position `position` (0, 1, 2, 0, 1, 2...).
+    """
+    morceaux = ["" for _ in range(periode)]
+    for position, caractere in enumerate(texte):
+        morceaux[position % periode] += caractere
+    return morceaux
+
+
+def recoller(morceaux, periode):
+    """Fait l'opération inverse de `colonnes` (voir TP 2, exercice C.3).
+
+        >>> recoller(["ADGJ", "BEH", "CFI"], 3)
+        'ABCDEFGHIJ'
+
+    Lecture du code : la position `i` du texte vient de la colonne `i % periode`,
+    et c'est le `i // periode`-ième caractère de cette colonne.
+    """
+    total = sum(len(morceau) for morceau in morceaux)
+    texte = ""
+    for position in range(total):
+        texte += morceaux[position % periode][position // periode]
+    return texte
+
+
+def cle_scytale_possibles(longueur):
+    """Clefs `t` qu'il est raisonnable d'essayer pour une scytale de `longueur`
+    caractères (voir TP 1 : c'est la recherche exhaustive).
+
+        >>> cle_scytale_possibles(40)
+        [2, 4, 5, 8]
+
+    Une clef n'est possible que si elle divise la longueur (`%`), qu'elle vaut au
+    moins 2 et que le tableau compte au moins 5 lignes (`//`).
+    """
+    possibles = []
+    for t in range(2, longueur + 1):
+        if longueur % t == 0 and longueur // t >= 5:
+            possibles.append(t)
+    return possibles
+
+
+def decouper_en_morceaux(texte, taille):
+    """Découpe le texte en morceaux de `taille` caractères.
+
+        >>> decouper_en_morceaux("ABCDEFGH", 3)
+        ['ABC', 'DEF', 'GH']
+
+    Lecture du code : `range(0, len(texte), taille)` donne les positions de
+    départ 0, 3, 6... et `texte[debut:debut + taille]` prend l'extrait voulu.
+    """
+    morceaux = []
+    for debut in range(0, len(texte), taille):
+        morceaux.append(texte[debut:debut + taille])
+    return morceaux
+
+
+def grammes_repetes(chiffre, taille):
+    """Groupes de `taille` lettres qui apparaissent au moins deux fois dans le
+    texte (les « répétitions de Kasiski »).
+
+        >>> grammes_repetes("ABCIABCXABC", 3)
+        ['ABC']
+
+    Lecture du code : on compte chaque groupe dans un dictionnaire (la méthode
+    `.get(morceau, 0)` évite l'erreur « clef inconnue »), puis on ne garde que
+    ceux dont le compte atteint 2.  `sorted` range la liste, pour que le
+    résultat soit toujours le même.
+    """
+    comptes = {}
+    for debut in range(len(chiffre) - taille + 1):
+        morceau = chiffre[debut:debut + taille]
+        comptes[morceau] = comptes.get(morceau, 0) + 1
+
+    repetes = []
+    for morceau in comptes:
+        if comptes[morceau] >= 2:
+            repetes.append(morceau)
+    return sorted(repetes)
+
+
+def diviseurs(nombre):
+    """Liste des diviseurs de `nombre`, dans l'ordre croissant.
+
+        >>> diviseurs(12)
+        [1, 2, 3, 4, 6, 12]
+
+    Lecture du code : on essaie tous les entiers de 1 à `nombre` et l'on garde
+    ceux dont le reste de la division est nul.
+    """
+    liste = []
+    for candidat in range(1, nombre + 1):
+        if nombre % candidat == 0:
+            liste.append(candidat)
+    return liste
+
+
+def caractere_vic(chiffre_message, chiffre_clef, position):
+    """Chiffre UN caractère du VIC : croise le chiffre du message additionné à
+    celui de la clef (la ligne) avec la position dans le bloc (la colonne).
+
+        >>> caractere_vic(0, 0, 0)
+        'S'
+
+    Lecture du code : `% 10` garde les indices entre 0 et 9, puis `lettre_vic`
+    lit le damier.
+    """
+    return lettre_vic((chiffre_message + chiffre_clef) % 10, position % 10)
+
+
+def ligne_du_damier(lettre, position):
+    """Retrouve la ligne du damier à partir de la lettre lue et de la position
+    dans le bloc de 10 caractères.
+
+        >>> ligne_du_damier("S", 0)
+        0
+    """
+    return deviner_ligne_vic(lettre, position % 10)
 
 
 # ---------------------------------------------------------------------------

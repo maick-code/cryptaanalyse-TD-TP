@@ -20,6 +20,25 @@ Comme au TP 1, chaque exercice suit toujours le même plan :
     > ✅ SOLUTION          : le code complet, en commentaire, à recopier pour
                              corriger (essaie d'abord par toi-même).
 
+LE PLAN DE CE FICHIER
+---------------------
+   1. Rappels du cours sur Vigenère .................................. § A
+   2. Le code à écrire (chiffrer et déchiffrer) ...................... § B
+   3. ★ LA CRYPTANALYSE ★ : casser Vigenère .......................... § C
+   4. Des expériences à faire dans l'interpréteur ..................... § D
+   5. Des questions de rapport ....................................... § E
+
+LA CRYPTANALYSE EST LA PARTIE PRINCIPALE DU TP
+----------------------------------------------
+Écrire Vigenère, c'est de l'arithmétique.  Le casser, c'est de la cryptanalyse,
+et c'est LA leçon du chapitre 2 : un chiffre qui rend l'analyse de fréquences
+inutilisable peut être ramené, colonne par colonne, à de simples décalages de
+César — que l'on sait déjà casser depuis le TP 1.
+
+Les outils de rangement dont tu aurais besoin (découper en colonnes, recoller,
+décaler une lettre, vider un texte de ses espaces) sont DÉJÀ ÉCRITS dans
+`outils/reference.py` : tu peux donc consacrer tout ton temps aux attaques.
+
 LA BOUCLE DE TRAVAIL
    1. écris une fonction dans ce fichier ;
    2. dans un terminal, ici, tape :
@@ -32,19 +51,18 @@ LA BOUCLE DE TRAVAIL
 Si tu as besoin de revoir les bases de Python (variables, chaînes, boucles,
 listes, dictionnaires, fonctions), tout est rappelé dans le § A du fichier du
 TP 1 (`seance1_permutation_substitution/tp1_permutation.py`) : ouvre-le et lis
-les « DIX GESTES ».  Un point nouveau ici, très utile :
+les « DIX GESTES ».
 
-    L'INDICE ET LA VALEUR EN MÊME TEMPS
-        for position, caractere in enumerate(texte):
-            ... position vaut 0, 1, 2... et caractere la lettre correspondante.
+LES CINQ FONCTIONS À ÉCRIRE
+---------------------------
+  § B — le code à écrire                § C — ★ CRYPTANALYSE ★
+   B.1  vigenere_chiffrer                C.1  decalage_probable
+   B.2  vigenere_dechiffrer              C.2  forcer_vigenere
+                                         C.3  cle_par_texte_connu
 
-LES DIX FONCTIONS À ÉCRIRE
---------------------------
-   A.1  indice_de_la_lettre      A.2  decaler_lettre      A.3  vider_les_espaces
-   B.1  vigenere_chiffrer        B.2  vigenere_dechiffrer
-   C.1  forcer_cesar_sur_colonne C.2  colonnes            C.3  recoller
-   C.4  forcer_vigenere
-   D.1  cle_par_texte_connu
+  Et, en jeu, les quatre messages interceptés :
+        MESSAGE_VIGENERE_1 (période donnée)   MESSAGE_VIGENERE_2 (idem)
+        MESSAGE_URGENT     (période donnée)   MESSAGE_INTERCEPTE (attaque D.3)
 ==========================================================================
 """
 
@@ -58,28 +76,39 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# Les outils du professeur utilisés ici :
-#   * ALPHABET      : la chaîne "ABC...Z" ;
+# Les outils fournis, que tu peux utiliser librement :
+#   * ALPHABET            : la chaîne "ABC...Z" ;
+#   * colonnes(texte, p)  : range le texte en p colonnes (voir C.2 du TP) ;
+#   * decaler_lettre(l, d): décale une lettre en tournant dans l'alphabet ;
+#   * indice_de_la_lettre : A -> 0, B -> 1, ... ;
+#   * recoller(...)       : refait un texte à partir des colonnes ;
 #   * rehabiller(texte_modele, lettres) : replace des lettres dans la
-#     présentation d'un texte (pour remettre les espaces et la ponctuation
-#     après un déchiffrement lettre à lettre) — voir son code commenté ;
-#   * vigenere_chiffrer_reference / vigenere_dechiffrer_reference : la version
-#     du professeur, pour comparer avec la tienne (utilise-la pour tester !) ;
-#   * distance_au_francais(texte) : écart aux fréquences du français.  PLUS LA
-#     VALEUR EST PETITE, plus le texte ressemble à du français (outil de C.1).
+#     présentation d'un texte (pour remettre les espaces après déchiffrement) ;
+#   * vider_les_espaces(texte) : ne garde que les lettres A...Z ;
+#   * vigenere_chiffrer_reference / ..._dechiffrer_reference : la version du
+#     professeur, pour vérifier la tienne.
 from outils.reference import (
     ALPHABET,
-    nettoyer,
+    colonnes,
+    decaler_lettre,
+    indice_de_la_lettre,
     rehabiller,
+    recoller,
+    vider_les_espaces,
     vigenere_chiffrer as vigenere_chiffrer_reference,
     vigenere_dechiffrer as vigenere_dechiffrer_reference,
 )
+
+# L'instrument de mesure de la cryptanalyse :
+#   distance_au_francais(texte) : écart entre les fréquences des lettres du
+#   texte et celles du français.  PLUS LA VALEUR EST PETITE, plus le texte
+#   ressemble à du français.  C'est l'outil de C.1, C.2 et C.3.
 from outils.texte_francais import distance_au_francais
 
 
 # ###########################################################################
 #
-#  RAPPELS DU COURS — À LIRE AVANT DE COMMENCER (c'est le cœur de la séance)
+#  § A — RAPPELS DU COURS (c'est le cœur de la séance)
 #
 # ###########################################################################
 #
@@ -100,10 +129,9 @@ from outils.texte_francais import distance_au_francais
 #        chiffré :  D  Q  Q  K  Q  X  S
 #
 #    La même lettre du clair (ici le O, deux fois) peut donner deux lettres
-#    différentes (Q et Q... ou autre chose selon la position) : les fréquences
-#    globales deviennent inutilisables.  On a surnommé Vigenère « le chiffre
-#    indéchiffrable ».  C'était excessif, et ton travail de la partie C le
-#    montrera.
+#    différentes : les fréquences globales deviennent inutilisables.  On a
+#    surnommé Vigenère « le chiffre indéchiffrable ».  C'était excessif, et ton
+#    travail de la partie C le montrera.
 #
 # 3) LA FAILLE, TOUJOURS LA MÊME
 #    La clef se RÉPÈTE.  Si elle fait 5 lettres, alors les positions 0, 5, 10,
@@ -120,135 +148,11 @@ from outils.texte_francais import distance_au_francais
 # ###########################################################################
 
 
-# ==========================================================================
-# PARTIE A — PETITS OUTILS
-# ==========================================================================
-
-def indice_de_la_lettre(lettre):
-    """A.1 — OBJECTIF : donner le rang d'une lettre dans l'alphabet.
-
-    POURQUOI (COURS) : toute la cryptographie de ce chapitre s'écrit avec des
-    nombres : A vaut 0, B vaut 1, ..., Z vaut 25.  Chiffrer, c'est additionner
-    des rangs ; déchiffrer, c'est en soustraire.  Cette fonction fait la
-    conversion lettre -> nombre.
-
-    CE QUE TU DOIS FAIRE :
-        utilise la méthode `.index()` de la chaîne ALPHABET :
-            ALPHABET.index("C")  vaut 2
-        Pense à mettre la lettre en majuscules d'abord : on veut accepter
-        aussi bien "m" que "M".
-
-    RAPPELS PYTHON :
-        * `ALPHABET.index(quelque_chose)` cherche la position de cette chose
-          dans la chaîne : le A est en position 0, le B en position 1, etc. ;
-        * `lettre.upper()` met une lettre en majuscule.
-
-    EXEMPLES (ce que les tests vérifient) :
-        indice_de_la_lettre("A")  ->  0
-        indice_de_la_lettre("M")  ->  12
-        indice_de_la_lettre("z")  ->  25
-    """
-    # --- À COMPLÉTER ---
-    return ALPHABET.index(...)                          # cherche le rang de la lettre
-
-    # ----------------------------------------------------------------------
-    # ✅ SOLUTION
-    # ----------------------------------------------------------------------
-    #     return ALPHABET.index(lettre.upper())
-    # ----------------------------------------------------------------------
-
-
-def decaler_lettre(lettre, decalage):
-    """A.2 — OBJECTIF : décaler une lettre de `decalage` rangs dans l'alphabet,
-    en revenant au début après Z (et en reculant correctement si le décalage est
-    négatif).
-
-    POURQUOI (COURS) : c'est LE geste du chiffrement par décalage.  Décaler de
-    3 : A devient D ; décaler de -3 : D redevient A.  Pour que Z + 1 donne bien
-    A, on utilise le reste de la division par 26 : c'est le « modulo 26 » du
-    cours (n devient (n + k) mod 26).
-
-    CE QUE TU DOIS FAIRE :
-        étape 1 : trouve le rang de la lettre avec ta fonction A.1 ;
-        étape 2 : ajoute le décalage puis prends le reste de la division par 26 :
-                      (rang + decalage) % 26
-        étape 3 : renvoie la lettre de ce nouveau rang : ALPHABET[nouveau rang].
-
-    RAPPELS PYTHON :
-        * `%` donne le reste : `(3 + 1) % 26` vaut 4 ; `(25 + 1) % 26` vaut 0
-          (le Z décalé d'un cran devient donc le A) ;
-        * avec un décalage négatif, le % de Python donne toujours un résultat
-          entre 0 et 25 : `(0 - 1) % 26` vaut 25, donc le A reculé d'un cran
-          devient le Z.  C'est exactement ce qu'on veut.
-
-    EXEMPLES (ce que les tests vérifient) :
-        decaler_lettre("A", 3)   ->  "D"
-        decaler_lettre("Z", 1)   ->  "A"
-        decaler_lettre("A", -1)  ->  "Z"
-        decaler_lettre("B", -1)  ->  "A"
-        decaler_lettre("a", 1)   ->  "B"    (les minuscules sont acceptées)
-    """
-    # --- À COMPLÉTER ---
-    rang = indice_de_la_lettre(...)                     # le rang de la lettre
-    nouveau_rang = (rang + ...) % 26                    # on décale, modulo 26
-    return ALPHABET[...]                                # la lettre du nouveau rang
-
-    # ----------------------------------------------------------------------
-    # ✅ SOLUTION
-    # ----------------------------------------------------------------------
-    #     rang = indice_de_la_lettre(lettre)
-    #     nouveau_rang = (rang + decalage) % 26
-    #     return ALPHABET[nouveau_rang]
-    # ----------------------------------------------------------------------
-
-
-def vider_les_espaces(texte):
-    """A.3 — OBJECTIF : ne garder que les lettres de A à Z, en majuscules.
-
-    POURQUOI (COURS) : pour attaquer un message, il faut le manipuler « en
-    colonnes ».  Or les espaces et la ponctuation ne font pas partie du
-    chiffrement (ils ne consomment pas de lettre de clef) : on les met donc de
-    côté le temps des calculs.  On les remettra à la fin avec `rehabiller`.
-
-    CE QUE TU DOIS FAIRE :
-        c'est exactement la fonction `nettoyer_simple` du TP 1 !  Si tu l'as
-        déjà écrite, recopie-la ici (c'est normal : on réutilise son travail) ;
-        sinon, la recette est la même :
-            étape 1 : prépare une chaîne vide ;
-            étape 2 : parcours le texte en majuscules ;
-            étape 3 : si le caractère est entre "A" et "Z", ajoute-le ;
-            étape 4 : renvoie le résultat.
-
-    RAPPELS PYTHON : voir le TP 1, geste 2.
-        * `texte.upper()` ; `for caractere in ...:` ; `resultat += caractere` ;
-        * `if "A" <= caractere <= "Z":` (mais attention : cette comparaison
-          n'accepte que les majuscules non accentuées, d'où le `.upper()`).
-
-    EXEMPLES (ce que les tests vérifient) :
-        vider_les_espaces("Bonjour, l'ami !")  ->  "BONJOURLAMI"
-        vider_les_espaces("DEJA PROPRE")       ->  "DEJAPROPRE"
-    """
-    # --- À COMPLÉTER ---
-    resultat = ...                                      # une chaîne vide
-    for caractere in ...:                               # parcours texte.upper()
-        if ...:                                         # teste "A" <= c <= "Z"
-            resultat += ...                             # ajoute la lettre
-    return ...                                          # renvoie le résultat
-
-    # ----------------------------------------------------------------------
-    # ✅ SOLUTION
-    # ----------------------------------------------------------------------
-    #     resultat = ""
-    #     for caractere in texte.upper():
-    #         if "A" <= caractere <= "Z":
-    #             resultat += caractere
-    #     return resultat
-    # ----------------------------------------------------------------------
-
-
-# ==========================================================================
-# PARTIE B — LE CODE DE VIGENÈRE
-# ==========================================================================
+# ###########################################################################
+#
+#  § B — LE CODE À ÉCRIRE : CE QUI SERT À CHIFFRER
+#
+# ###########################################################################
 
 def vigenere_chiffrer(texte, cle):
     """B.1 — OBJECTIF : chiffrer un texte avec la clef `cle` (par exemple "CLE").
@@ -274,8 +178,8 @@ def vigenere_chiffrer(texte, cle):
         étape 2 : parcours le texte mis en majuscules ;
         étape 3 : si le caractère est une lettre :
                     * prends la lettre de clef : `cle[rang_clef % len(cle)]` ;
-                    * son décalage est `ALPHABET.index(lettre_de_clef)` ;
-                    * décale le caractère avec ta fonction A.2 : c'est
+                    * son décalage est `indice_de_la_lettre(lettre_de_clef)` ;
+                    * décale le caractère avec l'outil fourni :
                       `decaler_lettre(caractere, decalage)` ;
                     * ajoute la lettre obtenue à `chiffre` ;
                     * fais `rang_clef += 1` (une lettre de plus consommée) ;
@@ -287,7 +191,7 @@ def vigenere_chiffrer(texte, cle):
         * `cle[rang_clef % len(cle)]` : le % ramène l'indice dans les limites de
           la clef (0, 1, 2, 0, 1, 2...) ;
         * `+= 1` augmente une variable de 1 ;
-        * tu peux appeler tes fonctions : `decaler_lettre(...)`.
+        * tu peux appeler les fonctions fournies : `decaler_lettre(...)`.
 
     EXEMPLES (ce que les tests vérifient — compare avec la version du
     professeur, `vigenere_chiffrer_reference`, en cas de doute) :
@@ -300,7 +204,7 @@ def vigenere_chiffrer(texte, cle):
     for caractere in texte.upper():                     # parcours le message
         if "A" <= caractere <= "Z":                     # est-ce une lettre ?
             lettre_de_clef = cle[rang_clef % len(...)]  # la lettre de clef du moment
-            decalage = ALPHABET.index(...)              # son décalage
+            decalage = indice_de_la_lettre(...)         # son décalage
             chiffre += decaler_lettre(...)              # on décale la lettre
             rang_clef += ...                            # une lettre de plus
         else:
@@ -315,7 +219,7 @@ def vigenere_chiffrer(texte, cle):
     #     for caractere in texte.upper():
     #         if "A" <= caractere <= "Z":
     #             lettre_de_clef = cle[rang_clef % len(cle)]
-    #             decalage = ALPHABET.index(lettre_de_clef)
+    #             decalage = indice_de_la_lettre(lettre_de_clef)
     #             chiffre += decaler_lettre(caractere, decalage)
     #             rang_clef += 1
     #         else:
@@ -341,9 +245,7 @@ def vigenere_dechiffrer(texte_chiffre, cle):
 
     RAPPELS PYTHON :
         * `-decalage` est l'opposé du décalage : si decalage vaut 3, on recule
-          de 3 ;
-        * `decaler_lettre` gère déjà les décalages négatifs grâce au modulo
-          (revoir l'exercice A.2).
+          de 3.  L'outil `decaler_lettre` gère déjà les décalages négatifs.
 
     EXEMPLE (ce que les tests vérifient) :
         vigenere_dechiffrer("DZRLZYT WI OZRFP", "CLE")  ->  "BONJOUR LE MONDE"
@@ -355,7 +257,7 @@ def vigenere_dechiffrer(texte_chiffre, cle):
     for caractere in texte_chiffre.upper():             # parcours le texte chiffré
         if "A" <= caractere <= "Z":
             lettre_de_clef = cle[rang_clef % len(...)]  # la lettre de clef du moment
-            decalage = ALPHABET.index(...)              # son décalage
+            decalage = indice_de_la_lettre(...)         # son décalage
             clair += decaler_lettre(caractere, ...)     # ATTENTION AU SIGNE !
             rang_clef += ...                            # une lettre de plus
         else:
@@ -370,7 +272,7 @@ def vigenere_dechiffrer(texte_chiffre, cle):
     #     for caractere in texte_chiffre.upper():
     #         if "A" <= caractere <= "Z":
     #             lettre_de_clef = cle[rang_clef % len(cle)]
-    #             decalage = ALPHABET.index(lettre_de_clef)
+    #             decalage = indice_de_la_lettre(lettre_de_clef)
     #             clair += decaler_lettre(caractere, -decalage)
     #             rang_clef += 1
     #         else:
@@ -379,30 +281,51 @@ def vigenere_dechiffrer(texte_chiffre, cle):
     # ----------------------------------------------------------------------
 
 
-# ==========================================================================
-# PARTIE C — L'ATTAQUE DE VIGENÈRE, ÉTAPE PAR ÉTAPE
-# ==========================================================================
+# ###########################################################################
 #
-# RAPPEL DE L'IDÉE (c'est toute la cryptanalyse de Vigenère) :
+#  § C — ★ CRYPTANALYSE ★ : CASSER VIGENÈRE
 #
-#   La clef se répète.  Si elle fait 4 lettres, alors les caractères aux
-#   positions 0, 4, 8, 12... sont décalés de la MÊME quantité.  En rangeant le
-#   message en 4 colonnes, chaque colonne est un simple code de César, et l'on
-#   sait casser César depuis le TP 1 (en comparant les fréquences au français).
+#  LA PARTIE PRINCIPALE DU TP.  Voici l'idée complète, à comprendre avant
+#  d'écrire une seule ligne :
 #
-#   Trouver la période (le nombre de colonnes) est l'objet du TP 3.  Ici, la
-#   période vous est DONNÉE : c'est ce que vous faites en classe pour comprendre
-#   l'attaque sans se battre avec la partie difficile.
+#      La clef se RÉPÈTE.  Si elle fait 4 lettres, les caractères aux positions
+#      0, 4, 8, 12... sont décalés de la MÊME quantité.  En rangeant le message
+#      chiffré en 4 colonnes, CHAQUE COLONNE EST UN SIMPLE CODE DE CÉSAR.
+#
+#  Et casser César, tu sais faire depuis le TP 1 : on essaie les 26 décalages
+#  possibles et l'on garde celui dont le résultat ressemble le plus au français
+#  (ici : `distance_au_francais`, appliquée à la colonne).
+#
+#  Il ne reste alors qu'à recoller les colonnes déchiffrées : le message
+#  apparaît.  C'est exactement ce que fait la fonction `forcer_vigenere`.
+#
+#  ## DEUX DÉTAILS QUI COMPTENT ########################################
+#
+#   * LES ESPACES NE COMPTENT PAS.  Comme ils ne consomment pas de lettre de
+#     clef, il faut les retirer AVANT de découper en colonnes (outil fourni :
+#     `vider_les_espaces`), puis les remettre à la fin (outil fourni :
+#     `rehabiller`).
+#
+#   * TROUVER LA PÉRIODE est un problème à part entière : c'est tout le
+#     programme du TP 3 (méthode de Kasiski et indice de coïncidence).  Aujourd'
+#     hui, la période vous est DONNÉE : c'est ce qui permet de se concentrer sur
+#     l'attaque elle-même.
+#
+#  ## LES OUTILS FOURNIS POUR CETTE PARTIE #####################
+#     vider_les_espaces(texte)      colonnes(texte, periode)
+#     recoller(morceaux, periode)   decaler_lettre(lettre, d)
+#     distance_au_francais(texte)   rehabiller(modele, lettres)
+#
+# ###########################################################################
 
 
-def forcer_cesar_sur_colonne(colonne):
-    """C.1 — OBJECTIF : retrouver le décalage d'UNE colonne (donc UNE lettre de
-    la clef).
+def decalage_probable(colonne):
+    """C.1 — ★ CRYPTANALYSE ★ retrouver le décalage d'UNE colonne.
 
     POURQUOI (COURS) : chaque colonne est un texte français chiffré par un
-    décalage constant.  On essaie donc les 26 décalages possibles, on déchiffre
-    chaque fois, et l'on garde celui qui donne le texte le plus proche du
-    français.  C'est l'attaque par analyse de fréquences du TP 1, appliquée à
+    décalage constant (un César).  On essaie donc les 26 décalages, on déchiffre
+    chaque fois la colonne, et l'on garde celui qui donne le texte le plus proche
+    du français : c'est l'attaque par analyse de fréquences du TP 1, appliquée à
     une colonne.
 
     CE QUE TU DOIS FAIRE :
@@ -417,20 +340,19 @@ def forcer_cesar_sur_colonne(colonne):
         étape 4 : mesure l'écart au français :
                       distance = distance_au_francais(essai)
         étape 5 : garde le décalage qui donne la plus PETITE distance (comme
-                  dans l'exercice C.3 du TP 1) ;
+                  dans l'exercice C.2 du TP 1) ;
         étape 6 : renvoie `meilleur_decalage` (un nombre entre 0 et 25).
 
     COMMENT LIRE LE RÉSULTAT : le décalage 0 correspond à la lettre de clef A,
-        1 à B, 2 à C, ..., 25 à Z.  On convertira en lettre dans C.4.
+        1 à B, 2 à C, ..., 25 à Z.  On convertit en lettre dans C.2.
 
     RAPPELS PYTHON :
         * deux boucles imbriquées : la petite (les lettres de la colonne)
           s'exécute entièrement à chaque tour de la grande (les 26 décalages) ;
-        * construire `essai` avec `+=` comme d'habitude ;
         * `distance < meilleure_distance` : on cherche la PLUS PETITE distance.
 
-    EXEMPLE : si la colonne a été chiffrée avec la lettre de clef D (décalage 3),
-        forcer_cesar_sur_colonne(colonne)  ->  3
+    EXEMPLE (ce que les tests vérifient) : si la colonne a été chiffrée avec la
+    lettre de clef D (décalage 3), la fonction renvoie 3.
     """
     # --- À COMPLÉTER ---
     meilleur_decalage = 0
@@ -462,142 +384,16 @@ def forcer_cesar_sur_colonne(colonne):
     # ----------------------------------------------------------------------
 
 
-def colonnes(texte, periode):
-    """C.2 — OBJECTIF : ranger le texte en `periode` colonnes.
-
-    POURQUOI (COURS) : c'est la manipulation qui transforme le problème
-    « Vigenère » (difficile) en `periode` problèmes « César » (faciles).  Voici
-    ce qui se passe, avec la période 3 et le texte ABCDEFGHIJ :
-
-        colonne 0 : A, D, G, J   (positions 0, 3, 6, 9)
-        colonne 1 : B, E, H      (positions 1, 4, 7)
-        colonne 2 : C, F, I      (positions 2, 5, 8)
-        résultat  : ["ADGJ", "BEH", "CFI"]
-
-    CE QUE TU DOIS FAIRE :
-        étape 1 : prépare une liste de `periode` chaînes vides :
-                      morceaux = []
-                      for i in range(periode):
-                          morceaux.append("")
-        étape 2 : parcours le texte avec les positions :
-                      for position, caractere in enumerate(texte):
-        étape 3 : range le caractère dans la bonne colonne :
-                      colonne = position % periode
-                      morceaux[colonne] += caractere
-        étape 4 : renvoie `morceaux`.
-
-    RAPPELS PYTHON :
-        * `enumerate(texte)` fournit DEUX choses à chaque tour : la position
-          (0, 1, 2...) et le caractère ;
-        * `position % periode` donne le numéro de colonne : 0, 1, 2, 0, 1, 2...
-        * `morceaux[colonne] += caractere` ajoute le caractère à LA colonne
-          voulue (on modifie un élément de la liste, pas la liste entière).
-
-    EXEMPLES (ce que les tests vérifient) :
-        colonnes("ABCDEFGHIJ", 3)  ->  ["ADGJ", "BEH", "CFI"]
-        colonnes("ABCDEF", 2)      ->  ["ACE", "BDF"]
-    """
-    # --- À COMPLÉTER ---
-    morceaux = []                                       # la liste des colonnes
-    for rang in range(...):                             # autant que la période
-        morceaux.append(...)                            # une colonne vide : ""
-    for position, caractere in enumerate(...):          # position ET caractère
-        colonne = position % ...                        # numéro de la colonne
-        morceaux[colonne] += ...                        # range le caractère
-    return ...                                          # renvoie les colonnes
-
-    # ----------------------------------------------------------------------
-    # ✅ SOLUTION
-    # ----------------------------------------------------------------------
-    #     morceaux = []
-    #     for rang in range(periode):
-    #         morceaux.append("")
-    #     for position, caractere in enumerate(texte):
-    #         colonne = position % periode
-    #         morceaux[colonne] += caractere
-    #     return morceaux
-    # ----------------------------------------------------------------------
-
-
-def recoller(morceaux, periode):
-    """C.3 — OBJECTIF : faire l'opération inverse de C.2 : reconstruire le texte
-    en entrelaçant les colonnes.
-
-    POURQUOI (COURS) : après avoir déchiffré chaque colonne séparément, il faut
-    remettre les lettres dans le bon ordre pour lire le message.  C'est le geste
-    « on relit le tableau ligne par ligne » (au lieu de colonne par colonne).
-
-    COMMENT FAIRE (l'idée à comprendre) :
-        on veut reconstruire la position 0, 1, 2, 3, ... du texte.
-        La position `i` vient de la colonne numéro `i % periode`, et c'est le
-        `i // periode`-ième caractère de cette colonne.  Exemple avec 3 colonnes
-        ["ADGJ", "BEH", "CFI"] :
-
-            i = 0  -> colonne 0 % 3 = 0, rang 0 // 3 = 0  -> morceaux[0][0] = "A"
-            i = 1  -> colonne 1,      rang 0              -> morceaux[1][0] = "B"
-            i = 2  -> colonne 2,      rang 0              -> morceaux[2][0] = "C"
-            i = 3  -> colonne 0,      rang 1              -> morceaux[0][1] = "D"
-
-    CE QUE TU DOIS FAIRE :
-        étape 1 : calcule la longueur totale : la somme des longueurs des
-                  morceaux.  Tu peux faire :
-                      total = 0
-                      for morceau in morceaux:
-                          total += len(morceau)
-        étape 2 : prépare une chaîne vide `texte = ""` ;
-        étape 3 : parcours les positions de 0 à total - 1 :
-                      for position in range(total):
-        étape 4 : ajoute le bon caractère :
-                      colonne = position % periode
-                      rang_dans_la_colonne = position // periode
-                      texte += morceaux[colonne][rang_dans_la_colonne]
-        étape 5 : renvoie `texte`.
-
-    RAPPELS PYTHON :
-        * `//` (division entière) : 7 // 3 vaut 2 ; `%` (reste) : 7 % 3 vaut 1 ;
-        * `morceaux[colonne][rang]` : deux crochets, on prend un caractère DANS
-          une chaîne QUI EST DANS une liste.
-
-    EXEMPLES (ce que les tests vérifient) :
-        recoller(["ADGJ", "BEH", "CFI"], 3)  ->  "ABCDEFGHIJ"
-        Et pour tout texte : recoller(colonnes(texte, p), p) = texte.
-    """
-    # --- À COMPLÉTER ---
-    total = 0                                           # longueur totale
-    for morceau in morceaux:
-        total += ...                                    # ajoute sa longueur
-    texte = ...                                         # une chaîne vide
-    for position in range(...):                         # de 0 à total - 1
-        colonne = position % ...                        # numéro de la colonne
-        rang_dans_la_colonne = position // ...          # combien de lettres déjà prises
-        texte += morceaux[colonne][...]                 # le bon caractère
-    return ...                                          # renvoie le texte recollé
-
-    # ----------------------------------------------------------------------
-    # ✅ SOLUTION
-    # ----------------------------------------------------------------------
-    #     total = 0
-    #     for morceau in morceaux:
-    #         total += len(morceau)
-    #     texte = ""
-    #     for position in range(total):
-    #         colonne = position % periode
-    #         rang_dans_la_colonne = position // periode
-    #         texte += morceaux[colonne][rang_dans_la_colonne]
-    #     return texte
-    # ----------------------------------------------------------------------
-
-
 def forcer_vigenere(texte_chiffre, periode):
-    """C.4 — OBJECTIF : casser un message de Vigenère dont on connaît la période.
+    """C.2 — ★ CRYPTANALYSE ★ casser un message dont on connaît la période.
 
     C'EST L'ATTAQUE COMPLÈTE DU COURS.  Elle s'enchaîne en six étapes, et tu as
-    déjà écrit toutes les briques :
+    déjà écrit la brique principale (C.1) :
 
-        étape 1 : enlève les espaces et la ponctuation (fonction A.3), car ils
+        étape 1 : enlève les espaces et la ponctuation (outil fourni), car ils
                   ne font pas partie du chiffrement ;
-        étape 2 : range les lettres en `periode` colonnes (fonction C.2) ;
-        étape 3 : pour chaque colonne, trouve son décalage (fonction C.1) ;
+        étape 2 : range les lettres en `periode` colonnes (outil fourni) ;
+        étape 3 : pour chaque colonne, trouve son décalage avec ta fonction C.1 ;
         étape 4 : la clef est la suite des lettres correspondantes : décalage 0
                   -> A, 1 -> B, ... On la construit avec :
                       cle = ""
@@ -605,33 +401,32 @@ def forcer_vigenere(texte_chiffre, periode):
                           cle += ALPHABET[decalage]
         étape 5 : déchiffre chaque colonne avec son décalage (avec
                   `decaler_lettre(lettre, -decalage)`), puis recolle les
-                  colonnes avec la fonction C.3 : tu obtiens les lettres du
-                  message clair, sans espaces ;
+                  colonnes avec l'outil fourni `recoller` : tu obtiens les
+                  lettres du message clair, sans espaces ;
         étape 6 : remets la présentation d'origine (espaces, ponctuation) avec
-                  l'outil du professeur :
+                  l'outil fourni :
                       clair = rehabiller(texte_chiffre, lettres_claires)
         étape 7 : renvoie les DEUX résultats : `return (cle, clair)`.
 
     RAPPELS PYTHON :
-        * une liste peut contenir des listes ou des chaînes : construis une
-          liste `decalages` avec `decalages.append(...)` ;
-        * pour parcourir des colonnes ET leurs décalages en même temps :
+        * construis une liste `decalages` avec `decalages.append(...)` ;
+        * pour parcourir les colonnes ET leurs décalages :
               for rang in range(periode):
-                  morceau = morceaux[rang]
                   decalage = decalages[rang]
+                  morceau = morceaux[rang]
         * `return (cle, clair)` renvoie un couple ; on le lira ensuite :
               cle, clair = forcer_vigenere(message, periode)
 
     EXEMPLE D'UTILISATION (ta récompense, avec les messages interceptés plus bas) :
         cle, clair = forcer_vigenere(MESSAGE_VIGENERE_1, PERIODE_1)
-        print(cle, clair[:80])
+        print(cle)
+        print(clair[:80])
 
-    CONSEIL DE MISE AU POINT : les tests de C.1, C.2 et C.3 doivent passer AVANT
-    d'attaquer C.4.  Si C.4 échoue, ajoute :
-        print(cle)          juste avant le return
-    et regarde la clef trouvée : si elle ressemble à la vraie clef sans être
-    exactement elle, c'est qu'une colonne a été mal reconnue (message trop court
-    ou colonne trop pauvre en lettres) — recommence avec un message plus long.
+    CONSEIL DE MISE AU POINT : les tests de C.1 doivent passer AVANT d'attaquer
+    C.2.  Si C.2 échoue, ajoute `print(cle)` juste avant le return et regarde la
+    clef trouvée : si elle ressemble à la vraie clef sans être exactement elle,
+    c'est qu'une colonne a été mal reconnue (colonne trop pauvre en lettres : le
+    message est trop court pour cette période).
     """
     # --- À COMPLÉTER ---
     lettres_chiffrees = vider_les_espaces(...)          # étape 1
@@ -640,7 +435,7 @@ def forcer_vigenere(texte_chiffre, periode):
     decalages = []                                      # un décalage par colonne
     cle = ""                                            # la clef reconstruite
     for rang in range(periode):
-        decalage = forcer_cesar_sur_colonne(...)        # étape 3 : le décalage
+        decalage = decalage_probable(...)               # étape 3 : le décalage
         decalages.append(...)                           # on le garde
         cle += ALPHABET[...]                            # étape 4 : en lettre de clef
 
@@ -664,7 +459,7 @@ def forcer_vigenere(texte_chiffre, periode):
     #     decalages = []
     #     cle = ""
     #     for rang in range(periode):
-    #         decalage = forcer_cesar_sur_colonne(morceaux[rang])
+    #         decalage = decalage_probable(morceaux[rang])
     #         decalages.append(decalage)
     #         cle += ALPHABET[decalage]
     #
@@ -681,68 +476,71 @@ def forcer_vigenere(texte_chiffre, periode):
     # ----------------------------------------------------------------------
 
 
-# ==========================================================================
-# PARTIE D — L'ATTAQUE PAR TEXTE CONNU
-# ==========================================================================
-#
-# Si l'on met la main sur le message en clair (un rapport, un communiqué, un
-# télégramme intercepté deux fois), l'affaire est entendue : on compare les deux
-# textes lettre à lettre et l'on retrouve la clef.  C'est ainsi que Kasiski,
-# officier prussien, a commencé à casser Vigenère au XIXe siècle ; c'est
-# aujourd'hui encore la base des attaques « à texte clair connu ».
-
 def cle_par_texte_connu(message_clair, message_chiffre):
-    """D.1 — OBJECTIF : retrouver la clef quand on connaît à la fois le texte
-    clair et le texte chiffré correspondant.
+    """C.3 — ★ CRYPTANALYSE ★ retrouver la clef quand on connaît un morceau du
+    texte clair.
 
-    POURQUOI (COURS) : c'est l'attaque la plus simple et la plus ancienne.
-    Comme on sait que chiffré = clair + clef (position par position), on a :
-        clef = chiffré - clair   (modulo 26)
+    POURQUOI (COURS) : c'est l'attaque la plus simple et la plus ancienne, et
+    elle est redoutable.  Si l'on met la main sur le texte en clair (un rapport,
+    un communiqué, un télégramme intercepté deux fois), l'affaire est entendue :
+    on compare les deux textes lettre à lettre, et l'on retrouve la clef.  C'est
+    la base des attaques dites « à texte clair connu », utilisées pour casser
+    Enigma : les Allemands terminaient leurs messages par des formules
+    stéréotypées.
+
+    COMMENT ÇA MARCHE : on sait que, position par position,
+        chiffré = clair + clef        donc        clef = chiffré - clair
+    et l'on travaille modulo 26 comme toujours.
 
     CE QUE TU DOIS FAIRE :
-        étape 1 : enlève espaces et ponctuation des DEUX textes (fonction A.3) :
-                      clair = vider_les_espaces(message_clair)
-                      chiffre = vider_les_espaces(message_chiffre)
-        étape 2 : pour chaque position, calcule le décalage :
-                      decalage = (indice_de_la_lettre(chiffre[position])
-                                  - indice_de_la_lettre(clair[position])) % 26
-                  et transforme-le en lettre de clef : ALPHABET[decalage].
-                  Tu obtiens une suite longue, par exemple "CLECLECLECLE".
-        étape 3 : cette suite répète la clef.  Cherche la plus PETITE période p
-                  telle que `suite[position] == suite[position + p]` pour toutes
-                  les positions.  Renvoie les p premières lettres.
-                  (C'est le même problème que l'exercice B.1 du TP 1 : une
-                  boucle `for p in range(1, len(suite) + 1)` et un test pour
-                  toutes les positions.)
+        étape 1 : enlève espaces et ponctuation des DEUX textes (outil fourni
+                  `vider_les_espaces`) ;
+        étape 2 : ATTENTION, ICI L'AGENT N'A PHOTOGRAPHIÉ QU'UN FRAGMENT : les
+                  deux textes n'ont pas forcément la même longueur.  On compare
+                  donc lettre à lettre jusqu'à la fin du PLUS COURT :
+                      longueur = min(len(clair), len(chiffre))
+                      for position in range(longueur):
+                          decalage = (indice_de_la_lettre(chiffre[position])
+                                      - indice_de_la_lettre(clair[position])) % 26
+                          suite += ALPHABET[decalage]
+                  Tu obtiens une longue suite de lettres, par exemple
+                  « EDFHEDFHEDFH... » (une suite qui se répète).
+        étape 3 : cette suite ne fait que répéter la clef.  Cherche la plus
+                  PETITE période p telle que `suite[position] == suite[position + p]`
+                  pour toutes les positions, et renvoie les p premières lettres.
+                  (Même problème qu'au TP 1 : une boucle `for p in range(1, ...)`
+                  et un test pour toutes les positions.)
+        étape 4 : renvoie la clef.
 
     RAPPELS PYTHON :
-        * `len(suite)` : la longueur de la suite de lettres ;
-        * pour tester si TOUTES les positions conviennent, on peut utiliser :
+        * `min(a, b)` donne le plus petit des deux nombres ;
+        * pour tester TOUTES les positions et sortir dès qu'une seule échoue :
               tout_bon = True
-              for position in range(len(suite) - p):
-                  if suite[position] != suite[position + p]:
+              for position in range(len(suite) - periode):
+                  if suite[position] != suite[position + periode]:
                       tout_bon = False
-          puis `if tout_bon: return suite[:p]` ;
-        * `suite[:p]` prend les p premières lettres.
+                      break
+          (`break` interrompt la boucle : plus la peine de continuer) ;
+        * `suite[:periode]` prend les `periode` premières lettres.
 
     EXEMPLES (ce que les tests vérifient) :
-        clair_chiffre_dans_le_code_de_la_fonction :
-        cle_par_texte_connu("BONJOUR", "DZRLZYT")       ->  "CLE"
-        cle_par_texte_connu("LE MESSAGE, ARRIVE !", chiffre_avec_la_clef_CLE)
-                                                        ->  "CLE"
+        cle_par_texte_connu("BONJOUR", "DZRLZYT")  ->  "CLE"
+        Et avec un simple fragment : cle_par_texte_connu("BONJ", "DZRLZ") -> "CLE"
 
     LIMITE À CONNAÎTRE : on ne retrouve que les lettres de clef qui ont
-    réellement servi.  Si la clef est plus longue que le texte connu, on ne peut
-    pas la retrouver en entier — c'est une limite de l'attaque, pas de ton code.
+    réellement servi.  Si le fragment connu est plus court que la clef, on ne
+    peut pas la retrouver en entier — c'est une limite de l'attaque, pas de ton
+    code.
     """
     # --- À COMPLÉTER ---
     clair = vider_les_espaces(...)                      # étape 1
     chiffre = vider_les_espaces(...)                    # étape 1 (suite)
+    longueur = min(len(clair), len(...))                # étape 2 : le plus court
 
     suite = ""                                          # la clef répétée
-    for position in range(len(clair)):                  # étape 2
+    for position in range(longueur):                    # étape 2
         decalage = (indice_de_la_lettre(chiffre[position])
-                    - indice_de_la_lettre(clair[position])) % 26
+                    - indice_de_la_lettre(clair[position])) % ...
         suite += ALPHABET[...]                          # la lettre de clef
 
     for periode in range(1, len(suite) + ...):          # étape 3 : la plus petite période
@@ -759,9 +557,10 @@ def cle_par_texte_connu(message_clair, message_chiffre):
     # ----------------------------------------------------------------------
     #     clair = vider_les_espaces(message_clair)
     #     chiffre = vider_les_espaces(message_chiffre)
+    #     longueur = min(len(clair), len(chiffre))
     #
     #     suite = ""
-    #     for position in range(len(clair)):
+    #     for position in range(longueur):
     #         decalage = (indice_de_la_lettre(chiffre[position])
     #                     - indice_de_la_lettre(clair[position])) % 26
     #         suite += ALPHABET[decalage]
@@ -771,29 +570,40 @@ def cle_par_texte_connu(message_clair, message_chiffre):
     #         for position in range(len(suite) - periode):
     #             if suite[position] != suite[position + periode]:
     #                 tout_bon = False
+    #                 break
     #         if tout_bon:
     #             return suite[:periode]
     #     return suite
     # ----------------------------------------------------------------------
 
 
-# ==========================================================================
-# PARTIE E — DEUX MESSAGES INTERCEPTÉS À DÉCRYPTER
-# ==========================================================================
+# ###########################################################################
 #
-# Voici deux dépêches chiffrées par Vigenère.  Bonne nouvelle : on connaît la
-# période de chacune (elle a été obtenue par des agents restés anonymes).
-# À toi de retrouver la clef et le texte, avec ta fonction C.4.
+#  § C (suite) — LES MESSAGES INTERCEPTÉS
 #
-# Dans l'interpréteur Python :
-#     >>> from tp2_vigenere import *
-#     >>> cle, clair = forcer_vigenere(MESSAGE_VIGENERE_1, PERIODE_1)
-#     >>> print(cle)
-#     >>> print(clair)
+#  Quatre messages t'attendent.  Pour les trois premiers, on connaît la PÉRIODE
+#  (un indicateur obtenu par ailleurs : c'est le TP 3 qui apprendra à la trouver
+#  tout seul), mais PAS la clef : à toi de jouer.
 #
-# Ensuite, essaie ton attaque D.1 : tu connais maintenant le texte clair de la
-# dépêche 1 !  Vérifie que cle_par_texte_connu(texte_connu, MESSAGE_VIGENERE_1)
-# redonne la même clef.
+#    MESSAGE_VIGENERE_1  période donnée (PERIODE_1)   -> forcer_vigenere
+#    MESSAGE_VIGENERE_2  période donnée (PERIODE_2)   -> forcer_vigenere
+#    MESSAGE_URGENT      période donnée (PERIODE_URGENT) -> forcer_vigenere
+#
+#    MESSAGE_INTERCEPTE  : la clef est inconnue, la période aussi ; mais un agent
+#                          a photographié le DÉBUT DU TEXTE CLAIR, qui est dans
+#                          la constante TEXTE_CONNU.  C'est l'attaque C.3 :
+#
+#        >>> cle = cle_par_texte_connu(TEXTE_CONNU, MESSAGE_INTERCEPTE)
+#        >>> cle, clair = forcer_vigenere(MESSAGE_INTERCEPTE, len(cle))
+#
+#  Dans l'interpréteur Python :
+#      >>> from tp2_vigenere import *
+#      >>> cle, clair = forcer_vigenere(MESSAGE_URGENT, PERIODE_URGENT)
+#      >>> print(cle)
+#      >>> print(clair)
+#
+#  (Ces constantes sont remplies par le professeur : ne les modifie pas, ce sont
+#  les messages interceptés.)
 
 # --- DÉBUT DE LA ZONE GÉNÉRÉE (outils/generer_messages.py) ---
 MESSAGE_VIGENERE_1 = (
@@ -806,6 +616,8 @@ MESSAGE_VIGENERE_1 = (
     "W OVNQKQFBQX XO ILI PS ARW CINUXUSEV TAIE GI XCAJYQG NQRQSF."
 )
 
+PERIODE_1 = 5
+
 MESSAGE_VIGENERE_2 = (
     "XE WQEIGFENZ QY TARM I EIGG NHBEI PQTMZR. MP DEIWAH UGE EMF XV"
     "MVTCK HI PRTONKI OOFURRGQRHVG EY PEUCG HY YOBA CVSOHTQA IX CUX"
@@ -815,74 +627,121 @@ MESSAGE_VIGENERE_2 = (
     "VFEFXEL LH QMZILBRVI."
 )
 
-PERIODE_1 = 5
-
 PERIODE_2 = 7
+
+MESSAGE_URGENT = (
+    "DI RIIYWX C IIVM RQKVX VIRVGAW. MN FVWGRPV UNW PG TSGNSK GEKLI"
+    " EVXMW RWZX ISV NR VHMXG UI ES GQKI, XF IXZXTFX NVW OAPNRKXK. "
+    "PGJ GAWZCLB LWVQEX VZEPXIL S PC WIKEI FL QHMPKE. P TDITKI LWVC"
+    " USGFIG RY IGWVV HX YETUI TNEPK QBVM, GK GX HERZIK KITR FKMPG "
+    "RYLKMVFX ES PGTXNJI VVVFARGV. WB DE TFYMW IUK GHMTGV, ME XEWK "
+    "TTKWGI TTJ PG TLXEMP UI ES ZCCPXJMG VX TLXGEHKW PC EYBL TQLV M"
+    "JEXVVLWV NV THFX FV TBWVTV. PXK LQDQXK HW IIESMU FRM VIU DSGLY"
+    "TVW YJEKTLXK IV UY ISMP GSNJ PC ISNLI. KC RX XEWK TTJPGI E IWV"
+    "UFRGW EXRRM DE RFVMW HG CE OAPNV, IM JIOVXMJI NV TEA EW TLXX H"
+    "W GSLLI, SLM LWYN TSGFEKK PX ESV UI ISWUV."
+)
+
+PERIODE_URGENT = 6
+
+MESSAGE_INTERCEPTE = (
+    "GIJLEIVYYFTXOITPASMXIWLQVVMPSEPXMLGIXYVNSEMKMXPROHMMZMNIBOPJZV"
+    "TPNEKMBLTRZEZPNYGSZOCIYIXLDWZVIFWEMKMOPWDPMDPXYIVPAENVMAZRYVML"
+    "FBNMOYLYSHMWLGJXMWLQZVMDEGVPUPWIQIVEGMZRBOFRJVLPDXGIDZJEBILFCI"
+    "MELPFBESCCDIOHMFIRPMBDLPVVZTGIZPMATPJXMLEXZRLCLPZFIEPEPHIYDPVT"
+    "IDDIYYAFOIOJMCLQJRBPCEWSZOOIPBPZXQZWLPNSIJQLYGZEDPNHZWXLAMZVAP"
+    "EHZWKLCXZW"
+)
+
+TEXTE_CONNU = (
+    "LEBATEAUQUITTELEPORTALAMAREEHAUTEAVECUNCHARGEMENTDEBOISETDEFER"
+    "LECAPITAIN"
+)
 # --- FIN DE LA ZONE GÉNÉRÉE ---
 
 
 # ###########################################################################
 #
-#  EXPÉRIENCES À FAIRE DANS L'INTERPRÉTEUR (la partie « cryptanalyse »)
+#  § D — EXPÉRIENCES À FAIRE DANS L'INTERPRÉTEUR (la méthode scientifique)
 #
 # ###########################################################################
 #
 # EXPÉRIENCE 1 — Vigenère fait-il vraiment disparaître les fréquences ?
 #     >>> from tp2_vigenere import *
-#     >>> from common import scytale_chiffrer          (ou outils.reference)
-#     >>> from outils.reference import cesar_chiffrer
 #     >>> from outils.texte_francais import barres, frequences
+#     >>> from outils.reference import cesar_chiffrer
 #     >>> clair = "LE MESSAGE ARRIVE CE SOIR A DIX HEURES DEVANT LA PORTE"
-#     >>> print(barres(frequences(clair)))                 (français : E en tête)
-#     >>> print(barres(frequences(cesar_chiffrer(clair, 7))))   (même forme, décalée)
-#     >>> print(barres(frequences(vigenere_chiffrer(clair, "SECRET"))))
-#     Observe : avec Vigenère, plus de E dominant !  Les lettres se ressemblent.
-#     C'est pour cela que l'analyse de fréquences globale échoue.
+#     >>> print(barres(frequences(clair)))                       (E en tête)
+#     >>> print(barres(frequences(cesar_chiffrer(clair, 7))))    (même forme,
+#                                                                  décalée)
+#     >>> print(barres(frequences(vigenere_chiffrer(clair, "PILOTE"))))
+#     Observe : avec Vigenère, plus de E dominant, les lettres se ressemblent.
+#     C'est pour cela que l'analyse de fréquences GLOBALE échoue.
 #
-# EXPÉRIENCE 2 — mais chaque colonne, elle, reste du français !
-#     >>> lettres = vider_les_espaces(chiffre)
+# EXPÉRIENCE 2 — mais chaque colonne, elle, redevient du français !
+#     >>> lettres = vider_les_espaces(vigenere_chiffrer(clair, "PILOTE"))
 #     >>> for rang in range(6):
-#     ...     print(rang, barres(frequences(lettres[rang::6]))[:60])
-#     (lettres[rang::6] prend un caractère sur six, à partir du rang : c'est la
-#     colonne du rang.  Le découpage [a:b:c] s'écrit a=début, b=fin, c=pas.)
-#     Chaque colonne retrouve l'allure du français : c'est toute l'astuce de C.1.
+#     ...     print("colonne", rang, barres(frequences(lettres[rang::6]))[:60])
+#     (lettres[rang::6] prend un caractère sur six : le découpage [a:b:c]
+#     s'écrit début, fin, pas.)  Chaque colonne retrouve l'allure du français :
+#     c'est toute l'astuce de C.1 et C.2.
 #
-# EXPÉRIENCE 3 — la clef est très courte à trouver
+# EXPÉRIENCE 3 — voir les 26 distances d'une colonne
 #     >>> for decalage in range(26):
-#     ...     essai = "".join(decaler_lettre(c, -decalage) for c in colonnes(...)[0])
+#     ...     essai = "".join(decaler_lettre(c, -decalage)
+#     ...                     for c in colonnes(lettres, 6)[0])
 #     ...     print(decalage, round(distance_au_francais(essai), 1))
 #     La plus petite distance donne le décalage de la première lettre de clef.
 #
+# EXPÉRIENCE 4 — la clef est bien plus longue que le texte connu
+#     >>> cle_par_texte_connu("BONJ", "DZRLZ")     -> "CLE" (3 lettres retrouvées)
+#     >>> cle_par_texte_connu("BO", "DZ")          -> que se passe-t-il ?
+#     Réfléchis : avec deux lettres connues, peut-on vraiment retrouver une clef
+#     de trois lettres ?  Note la réponse pour la question 5 du rapport.
+#
 # ###########################################################################
 #
-#  QUESTIONS DE RAPPORT (à rédiger et à rendre avec le fichier)
+#  § E — QUESTIONS DE RAPPORT (à rédiger et à rendre avec le fichier)
 #
 # ###########################################################################
 #
 # QUESTION 1. Pourquoi l'analyse de fréquences globale échoue-t-elle sur
 # Vigenère ?  Cite l'expérience 1.
 #
-# QUESTION 2. Pourquoi fonctionne-t-elle « par colonne » ?  Cite l'expérience 2.
+# QUESTION 2. Pourquoi fonctionne-t-elle « par colonne » ?  Cite l'expérience 2,
+# et explique le rôle de la PÉRIODE dans l'attaque.
 #
 # QUESTION 3. Combien y a-t-il de clefs de 5 lettres ?  Et de 8 lettres ?
-# (Indice : 26 possibilités par lettre.)  Compare ce nombre au coût de l'attaque
-# par colonnes : 26 essais par colonne, donc 26 x période essais au total.
+# (Indice : 26 possibilités par lettre.)  Compare ce nombre au coût réel de
+# l'attaque par colonnes : 26 essais par colonne, donc 26 x période essais.
+# Que peut-on en conclure sur ce qui fait la solidité d'un chiffre ?
 #
-# QUESTION 4. Deux messages sont chiffrés avec la même clef.  Que peut-on en
+# QUESTION 4. Pour la dépêche MESSAGE_URGENT : quelle est la clef trouvée ?
+# Quelles sont les dix premières lettres du texte clair ?  Que signifie le
+# message ?
+#
+# QUESTION 5. L'attaque C.3 a-t-elle besoin de la période ?  Explique pourquoi,
+# et ce qui se passe si le fragment connu est plus court que la clef (voir
+# l'expérience 4).  Dans quel cas cette attaque est-elle la plus efficace ?
+#
+# QUESTION 6. Deux messages sont chiffrés avec la même clef.  Que peut-on en
 # déduire ?  (Indice : compare les positions où les deux textes chiffrés ont la
 # même lettre ; c'est l'attaque « de deux messages », celle qui a fait tomber
 # Enigma par la répétition de la clef de message.)
-#
-# QUESTION 5. Quelle est la faiblesse structurelle de Vigenère ?  Que faudrait-il
-# changer pour la corriger, et pourquoi est-ce encore insuffisant ?
-#
-# QUESTION 6. Ton attaque D.1 (texte connu) a-t-elle besoin de la période ?
-# Explique pourquoi, et dans quel cas cette attaque est la plus efficace.
 #
 
 
 if __name__ == "__main__":
     # Cette partie s'exécute quand on lance :   python3 tp2_vigenere.py
+    # Elle sert à vérifier d'un coup d'œil où tu en es.
+
+    def _inacheve(valeur):
+        """Vrai si la fonction n'est pas finie : il reste des « ... » ou rien."""
+        if valeur is Ellipsis or valeur is None:
+            return True
+        if isinstance(valeur, (tuple, list)):
+            return any(_inacheve(element) for element in valeur)
+        return False
 
     def _essai(nom, appel):
         """Exécute un essai et affiche soit le résultat, soit un rappel gentil."""
@@ -891,35 +750,29 @@ if __name__ == "__main__":
         except Exception as erreur:                     # fonction incomplète ?
             print(f"  {nom} : pas encore terminée ({type(erreur).__name__})")
             return
-        if resultat is Ellipsis or resultat is None:    # il reste des ...
+        if _inacheve(resultat):                         # il reste des ...
             print(f"  {nom} : pas encore terminée (les ... du squelette sont encore là)")
         else:
             print(f"  {nom} -> {resultat}")
 
-    print("Voici où tu en es dans tes dix fonctions :")
-    _essai("A.1 indice_de_la_lettre('M')", lambda: indice_de_la_lettre("M"))
-    _essai("A.2 decaler_lettre('A', -1)", lambda: decaler_lettre("A", -1))
-    _essai("A.3 vider_les_espaces(\"Bonjour, l'ami !\")",
-           lambda: vider_les_espaces("Bonjour, l'ami !"))
+    print("Voici où tu en es dans tes cinq fonctions :")
+    print("  --- § B : le code à écrire ---")
     _essai("B.1 vigenere_chiffrer('BONJOUR LE MONDE', 'CLE')",
            lambda: vigenere_chiffrer("BONJOUR LE MONDE", "CLE"))
     _essai("B.2 vigenere_dechiffrer('DZRLZYT WI OZRFP', 'CLE')",
            lambda: vigenere_dechiffrer("DZRLZYT WI OZRFP", "CLE"))
+    print("  --- § C : ★ cryptanalyse ★ ---")
     # Pour tester C.1, on fabrique une « colonne » de toutes pièces : un texte
     # français chiffré avec la lettre de clef D (donc un décalage de 3).
-    # La fonction doit retrouver le décalage 3.
-    _essai("C.1 forcer_cesar_sur_colonne (doit donner le décalage 3)",
-           lambda: forcer_cesar_sur_colonne(
-               vigenere_chiffrer_reference(
-                   nettoyer("LE MESSAGE ARRIVE CE SOIR A DIX HEURES DEVANT LA PORTE DU JARDIN"),
-                   "D")))
-    _essai("C.2 colonnes('ABCDEFGHIJ', 3)",
-           lambda: colonnes("ABCDEFGHIJ", 3))
-    _essai("C.3 recoller(['ADGJ', 'BEH', 'CFI'], 3)",
-           lambda: recoller(["ADGJ", "BEH", "CFI"], 3))
-    _essai("C.4 forcer_vigenere(MESSAGE_VIGENERE_1, PERIODE_1)",
-           lambda: forcer_vigenere(MESSAGE_VIGENERE_1, PERIODE_1))
-    _essai("D.1 cle_par_texte_connu('BONJOUR', 'DZRLZYT')",
+    _essai("C.1 decalage_probable (doit donner le décalage 3)",
+           lambda: decalage_probable(
+               vider_les_espaces(
+                   vigenere_chiffrer_reference(
+                       "LE MESSAGE ARRIVE CE SOIR A DIX HEURES DEVANT LA PORTE DU JARDIN",
+                       "D"))))
+    _essai("C.2 forcer_vigenere(MESSAGE_URGENT, PERIODE_URGENT)",
+           lambda: forcer_vigenere(MESSAGE_URGENT, PERIODE_URGENT))
+    _essai("C.3 cle_par_texte_connu('BONJOUR', 'DZRLZYT')",
            lambda: cle_par_texte_connu("BONJOUR", "DZRLZYT"))
 
     print()

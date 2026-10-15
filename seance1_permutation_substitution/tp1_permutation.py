@@ -1,5 +1,5 @@
 """==========================================================================
- TP 1 — GÉNÉRALITÉS ET CODES SIMPLES
+ TP 1 — GÉNÉRALITÉS, CODES SIMPLES ET CRYPTANALYSE
  Chapitre 1 (définition d'un code) et chapitre 2 (codes de permutation,
  codes de substitution, cryptanalyse) — Pascal Boyer, « Cryptographie 2013 ».
 
@@ -15,9 +15,20 @@ il te donne même la solution de chaque exercice. Voici comment il est construit
 LE PLAN DE CE FICHIER
 ---------------------
    1. Un mini-cours de Python (les 10 gestes dont tu as besoin) ...... § A
-   2. Neuf exercices, à faire dans l'ordre .......................... § B
-   3. Des expériences à faire dans l'interpréteur Python ............. § C
-   4. Des questions de rapport ....................................... § D
+   2. Six exercices, à faire dans l'ordre ........................... § B et § C
+        § B : le code à écrire (ce qui sert à CHIFFRER) .......... 3 fonctions
+        § C : ★ LA CRYPTANALYSE ★ (ce qui sert à CASSER) ......... 3 fonctions
+   3. Un supplément d'histoire (à lire) ............................. § D
+   4. Des expériences à faire dans l'interpréteur Python ............. § E
+   5. Des questions de rapport ....................................... § F
+
+LA CRYPTANALYSE EST LA PARTIE PRINCIPALE DU TP
+----------------------------------------------
+Écrire un chiffre, c'est facile ; le casser, c'est là que se joue toute la
+cryptographie du cours. La partie CRYPTANALYSE te fait attaquer de vrais
+messages interceptés, dont tu ne connais PAS la clef, puis reconnaître tout seul
+le chiffrement utilisé. Les outils de rangement dont tu aurais besoin sont déjà
+écrits dans `outils/reference.py` : tu peux donc te concentrer sur l'attaque.
 
 CHAQUE EXERCICE EST ÉCRIT TOUJOURS SUR LE MÊME MODÈLE
 -----------------------------------------------------
@@ -43,18 +54,22 @@ LA BOUCLE DE TRAVAIL (à répéter après chaque exercice)
 
    4. lis le bilan : « [OK] » signifie que ton code est juste, « [ÉCHEC] »
       t'explique ce qui ne va pas (valeur attendue, valeur obtenue) ;
-   5. recommence jusqu'à ce que les neuf fonctions soient [OK].
+   5. recommence jusqu'à ce que les onze épreuves soient réussies.
 
 RÈGLE D'OR : ne modifie jamais les fichiers `test_tp1_permutation.py` ni le
 dossier `outils/` : ils appartiennent au professeur. Tu peux en revanche lire
 `outils/reference.py` autant que tu veux, il est commenté ligne par ligne.
 
-LES SEPT FONCTIONS À ÉCRIRE
----------------------------
-   A.1  nettoyer_simple            A.2  compter_lettres
-   B.1  cle_scytale_possibles      B.2  decouper_en_morceaux    B.3  attaque_scytale
-   C.1  cesar_chiffrer             C.2  cesar_dechiffrer        C.3  forcer_cesar
-   D.1  message_compromis
+LES SIX FONCTIONS À ÉCRIRE
+--------------------------
+  § B — le code à écrire                     § C — ★ CRYPTANALYSE ★
+   B.1  compter_lettres                       C.1  attaque_scytale
+   B.2  cesar_chiffrer                        C.2  forcer_cesar
+   B.3  cesar_dechiffrer                      C.3  identifier_et_dechiffrer
+
+  Et, en jeu à la fin du TP, les cinq messages interceptés :
+        MESSAGE_SCYTALE   MESSAGE_CESAR
+        MESSAGE_MYSTERE_1   MESSAGE_MYSTERE_2   MESSAGE_MYSTERE_3
 ==========================================================================
 """
 
@@ -69,28 +84,26 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# Cette ligne va chercher, dans le dossier du TP, les outils DÉJÀ ÉCRITS par le
-# professeur.  On utilisera surtout :
+# Le fichier `common.py` du dossier te donne les outils de base écrits par le
+# professeur :
 #   * ALPHABET          : la chaîne "ABCDEFGHIJKLMNOPQRSTUVWXYZ" ;
 #   * nettoyer(texte)   : met en majuscules et enlève accents et ponctuation ;
 #   * comptage(texte)   : compte les 26 lettres d'un texte ;
 #   * scytale_chiffrer / scytale_dechiffrer : le code de permutation, fourni.
 from common import ALPHABET, comptage, nettoyer, scytale_chiffrer, scytale_dechiffrer
 
-# Et voici les trois outils de cryptanalyse que le professeur t'offre :
-#   * distance_au_francais(texte) : écart entre les fréquences du texte et
-#     celles du français. PLUS LA VALEUR EST PETITE, plus le texte ressemble à
-#     du français. Sert à l'exercice C.3.
+# Ces outils-là sont fournis pour que tu ne perdes pas ton temps sur du
+# rangement : ils ne sont PAS de la cryptographie.
+from outils.reference import cle_scytale_possibles, vider_les_espaces
+
+# Et voici les deux instruments de mesure de la cryptanalyse :
+#   * distance_au_francais(texte) : écart entre les fréquences des lettres du
+#     texte et celles du français. PLUS LA VALEUR EST PETITE, plus le texte
+#     ressemble à du français. C'est l'outil de C.2.
 #   * vraisemblance(texte)        : note fondée sur l'ORDRE des lettres.
-#     PLUS LA VALEUR EST GRANDE, plus le texte ressemble à du français. Sert à
-#     l'exercice B.3.
-#   * frequences_du_francais()    : le modèle du français (pour information).
-from outils.texte_francais import (
-    distance_au_francais,
-    frequences_du_francais,
-    tableau_lettres,
-    vraisemblance,
-)
+#     PLUS LA VALEUR EST GRANDE, plus le texte ressemble à du français. C'est
+#     l'outil de C.1.
+from outils.texte_francais import distance_au_francais, vraisemblance
 
 
 # ###########################################################################
@@ -98,7 +111,7 @@ from outils.texte_francais import (
 #  § A — MINI-COURS DE PYTHON : LES DIX GESTES DONT TU AS BESOIN
 #
 #  Ce n'est pas un cours complet : ce sont exactement les outils utilisés dans
-#  les neuf exercices. Tu peux revenir ici à tout moment.
+#  les six exercices. Tu peux revenir ici à tout moment.
 #
 #  Avertissement : en Python, les espaces au début des lignes ont un sens !
 #  On écrit les instructions « à l'intérieur » d'une boucle ou d'un `if` avec
@@ -209,71 +222,18 @@ from outils.texte_francais import (
 
 # ###########################################################################
 #
-#  § B — LES NEUF EXERCICES
+#  § B — LE CODE À ÉCRIRE : CE QUI SERT À CHIFFRER
 #
 # ###########################################################################
 
 
-# ==========================================================================
-# PARTIE A — PRÉPARER LE TEXTE
-# ==========================================================================
-
-def nettoyer_simple(texte):
-    """A.1 — OBJECTIF : mettre le texte en MAJUSCULES et ne garder que les
-    lettres de A à Z (les espaces, la ponctuation, les chiffres et les accents
-    compliqués sont enlevés).
-
-    POURQUOI (COURS) : tous les codes anciens du cours travaillent sur les
-    mêmes 26 lettres.  Avant de chiffrer, il faut donc « ranger » le message :
-    plus d'espaces, plus d'accents, tout en majuscules.  C'est ce que faisaient
-    les opérateurs avec leurs tableaux de chiffrement.
-
-    CE QUE TU DOIS FAIRE :
-        étape 1 : mets le texte en majuscules ;
-        étape 2 : prépare une chaîne vide qui recevra le résultat ;
-        étape 3 : parcours le texte caractère par caractère ;
-        étape 4 : si le caractère est une lettre de "A" à "Z", ajoute-le à la
-                  fin du résultat ; sinon, ne fais rien (le caractère disparaît) ;
-        étape 5 : renvoie le résultat.
-
-    RAPPELS PYTHON :
-        * `texte.upper()` met en majuscules ;
-        * `for caractere in texte:` parcourt les caractères ;
-        * `if "A" <= caractere <= "Z":` teste si c'est une lettre ;
-        * `resultat += caractere` ajoute le caractère à la fin du résultat ;
-        * `return resultat` renvoie le résultat.
-
-    EXEMPLES (ce que les tests vérifient) :
-        nettoyer_simple("Bonjour, le monde !")      ->  "BONJOURLEMONDE"
-        nettoyer_simple("Le chat mange, en 2026.")  ->  "LECHATMANGEEN"
-    """
-    # --- À COMPLÉTER : remplace les ... en suivant les commentaires ---
-    texte = ...                                       # utilise la méthode .upper()
-    resultat = ...                                    # une chaîne vide : ""
-    for caractere in ...:                             # parcours le texte
-        if ...:                                       # teste "A" <= caractere <= "Z"
-            resultat += ...                           # ajoute le caractère
-    return ...                                        # renvoie le résultat
-
-    # ----------------------------------------------------------------------
-    # ✅ SOLUTION (recopie ces lignes dans la fonction pour corriger)
-    # ----------------------------------------------------------------------
-    #     texte = texte.upper()
-    #     resultat = ""
-    #     for caractere in texte:
-    #         if "A" <= caractere <= "Z":
-    #             resultat += caractere
-    #     return resultat
-    # ----------------------------------------------------------------------
-
-
 def compter_lettres(texte):
-    """A.2 — OBJECTIF : compter combien de fois chaque lettre apparaît.
+    """B.1 — OBJECTIF : compter combien de fois chaque lettre apparaît.
 
     POURQUOI (COURS) : c'est LE geste de la cryptanalyse par analyse de
     fréquences.  Le cryptanalyste arabe du IXe siècle comptait les lettres du
     message intercepté ; c'est ce comptage qui révèle les régularités du
-    français.
+    français.  Ta fonction C.2 ne pourra pas se passer de ce genre de comptage.
 
     CE QUE TU DOIS FAIRE :
         étape 1 : crée un dictionnaire vide : `comptes = {}` ;
@@ -321,144 +281,174 @@ def compter_lettres(texte):
     # ----------------------------------------------------------------------
 
 
-# ==========================================================================
-# PARTIE B — LE CODE DE PERMUTATION (SCYTALE) ET SON ATTAQUE
-# ==========================================================================
-#
-# RAPPEL DU COURS.  Dans un code de PERMUTATION, on ne remplace aucune lettre :
-# on les DÉPLACE.  La scytale des Spartiates fait cela : on enroule une lanière
-# de cuir autour d'un bâton de t colonnes, on écrit le message dans le sens de
-# la longueur, et on le lit en colonnes.  Les fonctions `scytale_chiffrer` et
-# `scytale_dechiffrer` sont déjà écrites dans `common.py` : regarde-les, elles
-# sont commentées.
-#
-# CONSÉQUENCE FONDAMENTALE (à comprendre, c'est tout l'exercice) :
-#     les fréquences des lettres du texte chiffré sont EXACTEMENT celles du
-#     texte clair, puisque aucune lettre n'a changé !
-#
-# Donc, pour casser une scytale, il est INUTILE de comparer les fréquences :
-# tous les candidats ont les mêmes comptes de lettres.  Ce qui change d'un
-# candidat à l'autre, c'est l'ORDRE des lettres.  Or, en français, certains
-# enchaînements sont fréquents (« ES », « LE », « DE », « NT »...) et d'autres
-# presque impossibles (« XZ », « QK »...).  C'est ce que mesure la fonction
-# `vraisemblance` : plus sa valeur est GRANDE, plus l'enchaînement des lettres
-# ressemble à du français.  Un vrai texte français tourne autour de -5, un
-# charabia descend vers -6.
+def cesar_chiffrer(texte, cle):
+    """B.2 — OBJECTIF : chiffrer un texte avec le code de César de clef `cle`.
 
+    RAPPEL DU COURS : on REMPLACE chaque lettre par une autre : la lettre de
+    rang n devient la lettre de rang (n + cle) mod 26.  Avec la clef 3 :
+    A devient D, B devient E, ..., Z revient à C.  C'est le plus ancien code de
+    substitution connu (les militaires l'appelaient « alphabet trois »).
 
-def cle_scytale_possibles(longueur):
-    """B.1 — OBJECTIF : donner la liste des clefs t qu'il est raisonnable
-    d'essayer pour un texte chiffré de `longueur` caractères.
-
-    POURQUOI (COURS) : attaquer un code, c'est d'abord savoir combien de clefs
-    existent.  Ici, la clef est le nombre de lettres par ligne, t.  Une clef
-    n'est possible que si :
-        * t divise la longueur du texte (sinon on ne peut pas remplir le
-          tableau : la scytale exige un nombre entier de lignes) ;
-        * t vaut au moins 2 (t = 1 ne mélange rien du tout) ;
-        * le tableau a au moins 5 lignes, donc t <= longueur // 5 (en dessous,
-          le tableau est trop écrasé pour que le message soit vraiment brouillé).
+    CONVENTIONS DU TP (elles servent à tous les tests) :
+        * le texte est mis en MAJUSCULES ;
+        * seules les lettres de A à Z sont décalées ;
+        * les autres caractères (espace, virgule, point, apostrophe) sont
+          RECOPIÉS SANS MODIFICATION, à leur place.
 
     CE QUE TU DOIS FAIRE :
-        étape 1 : prépare une liste vide : `possibles = []` ;
-        étape 2 : parcours tous les entiers t de 2 à longueur :
-                      for t in range(2, longueur + 1):
-        étape 3 : si `longueur % t == 0` ET si `longueur // t >= 5`, alors
-                  ajoute t à la liste : `possibles.append(t)` ;
-        étape 4 : renvoie la liste.
+        étape 1 : prépare une chaîne vide : `chiffre = ""` ;
+        étape 2 : parcours le texte mis en majuscules ;
+        étape 3 : pour chaque caractère :
+                    - s'il est entre "A" et "Z" :
+                        * trouve son rang dans l'alphabet :
+                          `ALPHABET.index(caractere)`
+                        * ajoute la clef, puis « reviens au début » avec le
+                          reste de la division par 26 :
+                          `nouveau_rang = (rang + cle) % 26`
+                        * la nouvelle lettre est `ALPHABET[nouveau_rang]` ;
+                    - sinon (espace, ponctuation...) : garde le caractère tel
+                      quel ;
+        étape 4 : renvoie la chaîne `chiffre`.
 
     RAPPELS PYTHON :
-        * `%` donne le reste : `40 % 4` vaut 0, donc 4 divise 40 ;
-        * `//` donne la division entière : `40 // 4` vaut 10 (il y a 10 lignes) ;
-        * `et` se dit `and` en Python : `if longueur % t == 0 and longueur // t >= 5:` ;
-        * `liste.append(t)` ajoute t à la fin de la liste.
+        * `ALPHABET.index("C")` vaut 2, `ALPHABET[2]` vaut "C" ;
+        * `(rang + cle) % 26` reste toujours entre 0 et 25 : c'est ce qui fait
+          que Z + 1 donne A, et non une lettre qui n'existe pas ;
+        * `chiffre += ALPHABET[nouveau_rang]` ajoute la lettre au résultat.
 
     EXEMPLES (ce que les tests vérifient) :
-        cle_scytale_possibles(40)  ->  [2, 4, 5, 8]
-        cle_scytale_possibles(35)  ->  [5, 7]
-        cle_scytale_possibles(9)   ->  []
+        cesar_chiffrer("AVE", 3)                ->  "DYH"
+        cesar_chiffrer("XYZ", 3)                ->  "ABC"    (retour au début)
+        cesar_chiffrer("BONJOUR, LE MONDE", 3)  ->  "ERQMRXU, OH PRQGH"
     """
     # --- À COMPLÉTER ---
-    possibles = ...                                   # une liste vide : []
-    for t in range(2, ...):                           # de 2 à longueur inclus
-        if longueur % t == ... and longueur // t >= ...:
-            possibles.append(...)                     # ajoute t à la liste
-    return ...                                        # renvoie la liste
+    chiffre = ...                                      # une chaîne vide
+    for caractere in texte.upper():                    # parcours le texte
+        if "A" <= caractere <= "Z":                    # est-ce une lettre ?
+            rang = ALPHABET.index(...)                 # son rang (0 à 25)
+            nouveau_rang = (rang + ...) % ...          # on décale, modulo 26
+            chiffre += ALPHABET[...]                   # la nouvelle lettre
+        else:
+            chiffre += ...                             # recopie le caractère tel quel
+    return ...                                         # renvoie le texte chiffré
 
     # ----------------------------------------------------------------------
     # ✅ SOLUTION
     # ----------------------------------------------------------------------
-    #     possibles = []
-    #     for t in range(2, longueur + 1):
-    #         if longueur % t == 0 and longueur // t >= 5:
-    #             possibles.append(t)
-    #     return possibles
+    #     chiffre = ""
+    #     for caractere in texte.upper():
+    #         if "A" <= caractere <= "Z":
+    #             rang = ALPHABET.index(caractere)
+    #             nouveau_rang = (rang + cle) % 26
+    #             chiffre += ALPHABET[nouveau_rang]
+    #         else:
+    #             chiffre += caractere
+    #     return chiffre
     # ----------------------------------------------------------------------
 
 
-def decouper_en_morceaux(texte, taille):
-    """B.2 — OBJECTIF : découper un texte en morceaux de `taille` caractères.
+def cesar_dechiffrer(texte_chiffre, cle):
+    """B.3 — OBJECTIF : déchiffrer un message chiffré par César.
 
-    POURQUOI (COURS) : cette petite fonction servira à lire un texte chiffré
-    « en lignes de t lettres », exactement comme l'opérateur qui enroule sa
-    lanière autour du bâton.  On la retrouvera aussi au TP 2 pour compter des
-    fréquences par colonnes.
+    POURQUOI C'EST FACILE (et important) : déchiffrer, c'est décaler dans
+    l'autre sens, donc de -cle.  Et comme « reculer de 3 » revient au même que
+    « avancer de 23 » (3 + 23 = 26), on peut réutiliser exactement la fonction
+    précédente avec le décalage `(-cle) % 26`.
 
     CE QUE TU DOIS FAIRE :
-        étape 1 : prépare une liste vide : `morceaux = []` ;
-        étape 2 : parcours les positions de début, de 3 en 3 si la taille vaut 3 :
-                  `for debut in range(0, len(texte), taille):`
-        étape 3 : prends l'extrait qui commence en `debut` et qui fait `taille`
-                  caractères : `texte[debut:debut + taille]`
-                  (le découpage par crochets s'arrête AVANT la fin donnée) ;
-        étape 4 : ajoute cet extrait à la liste ;
-        étape 5 : renvoie la liste.
+        écris UNE SEULE ligne, qui appelle la fonction B.2 :
+            return cesar_chiffrer(texte_chiffre, (-cle) % 26)
+        C'est tout !  Et c'est une leçon de programmation : quand on a écrit une
+        fonction juste, on la réutilise au lieu de recopier du code (moins de
+        code, moins de fautes).
 
     RAPPELS PYTHON :
-        * `range(0, len(texte), taille)` donne 0, taille, 2*taille... : ce sont
-          les positions de départ de chaque morceau ;
-        * `texte[debut:debut + taille]` extrait les `taille` caractères ;
-        * le dernier morceau peut être plus court : c'est normal (il sera
-          complété par des X au moment du chiffrement).
+        * `(-cle) % 26` calcule le décalage inverse.  Pour cle = 3, cela vaut
+          23 : compter 23 cases en avant, c'est comme reculer de 3.
 
-    EXEMPLES (ce que les tests vérifient) :
-        decouper_en_morceaux("ABCDEFGH", 3)  ->  ["ABC", "DEF", "GH"]
-        decouper_en_morceaux("ABCDEF", 3)    ->  ["ABC", "DEF"]
+    EXEMPLE (ce que les tests vérifient) :
+        cesar_dechiffrer("ERQMRXU, OH PRQGH", 3)  ->  "BONJOUR, LE MONDE"
+        Et bien sûr, pour toutes les clefs : déchiffrer(chiffrer(x)) = x.
     """
-    # --- À COMPLÉTER ---
-    morceaux = ...                                    # une liste vide
-    for debut in range(0, ..., taille):               # les positions de départ
-        extrait = texte[debut:...]                    # les `taille` caractères
-        morceaux.append(...)                          # ajoute l'extrait
-    return ...                                        # renvoie la liste
+    # --- À COMPLÉTER : une seule ligne suffit ! ---
+    return ...                                         # appelle cesar_chiffrer
 
     # ----------------------------------------------------------------------
     # ✅ SOLUTION
     # ----------------------------------------------------------------------
-    #     morceaux = []
-    #     for debut in range(0, len(texte), taille):
-    #         extrait = texte[debut:debut + taille]
-    #         morceaux.append(extrait)
-    #     return morceaux
+    #     return cesar_chiffrer(texte_chiffre, (-cle) % 26)
     # ----------------------------------------------------------------------
+
+
+# ###########################################################################
+#
+#  § C — ★ CRYPTANALYSE ★
+#
+#  LA PARTIE PRINCIPALE DU TP.  Tu es maintenant un cryptanalyste : tu as
+#  intercepté un message, tu ne connais NI le texte, NI la clef, NI même (pour
+#  les messages mystères) la méthode de chiffrement utilisée.  Ton travail est
+#  de retrouver le texte clair.
+#
+#  ## LA MÉTHODE GÉNÉRALE, EN TROIS TEMPS ###############################
+#
+#   1. COMPTER LES CLEFS POSSIBLES.  Si elles sont peu nombreuses (26 pour
+#      César, une poignée pour la scytale), on les essaie toutes : c'est la
+#      RECHERCHE EXHAUSTIVE.  C'est laid, mais ça marche toujours.
+#
+#   2. POUR CHAQUE CANDIDAT, SE DEMANDER « EST-CE DU FRANÇAIS ? ».  Un candidat
+#      a intérêt à ressembler au français : cela s'appelle une HYPOTHÈSE DE
+#      TRAVAIL, et il faut savoir la mesurer.  Deux instruments sont fournis :
+#
+#        * `distance_au_francais(texte)` : écart entre les FRÉQUENCES des
+#          lettres du candidat et celles du français.
+#              PLUS PETIT = PLUS FRANÇAIS.
+#          Il sert quand les lettres ont été REMPLACÉES (César) : le E du
+#          français reste la lettre la plus fréquente du message, simplement
+#          décalée.
+#
+#        * `vraisemblance(texte)` : note fondée sur l'ORDRE des lettres, donc
+#          sur la fréquence des PAIRES (« ES », « LE », « DE », « NT » sont
+#          partout en français ; « XZ », « QK » nulle part).
+#              PLUS GRAND = PLUS FRANÇAIS.
+#          Il sert quand les lettres ont été DÉPLACÉES sans être remplacées
+#          (scytale) : là, toutes les fréquences sont identiques d'un candidat à
+#          l'autre, et seul l'ordre peut les départager.
+#
+#   3. GARDER LE MEILLEUR CANDIDAT, et vérifier qu'il se lit vraiment.
+#
+#  ## L'ERREUR À NE PAS COMMETTRE ######################################
+#
+#   C'est l'erreur classique du débutant : comparer les FRÉQUENCES pour casser
+#   une scytale (aucun résultat, puisque la scytale ne change aucune lettre) ou
+#   comparer l'ORDRE des lettres pour casser un César (le meilleur score est
+#   souvent obtenu avec un texte qui n'est pas encore tout à fait décalé comme
+#   il faut).  Choisis ton instrument d'après ce que le chiffrement a fait aux
+#   lettres : REMPLACÉES ou DÉPLACÉES.
+#
+#  ## LES OUTILS QUE TU AS LE DROIT D'UTILISER (ils sont fournis) ######
+#
+#     cle_scytale_possibles(longueur)  ->  les clefs t à essayer ;
+#     scytale_dechiffrer(chiffre, t)   ->  le déchiffrement de la scytale ;
+#     vider_les_espaces(texte)         ->  ne garde que les lettres A...Z ;
+#     distance_au_francais(texte)      ->  voir ci-dessus ;
+#     vraisemblance(texte)             ->  voir ci-dessus.
+#
+# ###########################################################################
 
 
 def attaque_scytale(chiffre):
-    """B.3 — OBJECTIF : retrouver le message clair SANS CONNAÎTRE LA CLEF.
+    """C.1 — ★ CRYPTANALYSE ★ retrouver le message clair sans connaître la clef.
 
     POURQUOI (COURS) : c'est le cœur de la cryptanalyse.  On ne connaît ni le
-    message, ni la clef : on a seulement le texte intercepté.  La méthode est
-    la « recherche exhaustive » : on essaie toutes les clefs possibles, et l'on
-    garde le candidat qui ressemble le plus à du français.
+    message, ni la clef : on a seulement le texte intercepté.  On essaie donc
+    toutes les clefs possibles et l'on garde le candidat le plus français.
 
-    COMMENT RECONNAÎTRE LE BON CANDIDAT ? (réfléchis, c'est le point clé)
-        * comparer les FRÉQUENCES ne marche pas : la scytale n'a changé aucune
-          lettre, donc tous les candidats ont les mêmes comptes de lettres ;
-        * ce qui change, c'est l'ORDRE des lettres.  On utilise donc la fonction
-          `vraisemblance`, qui note l'enchaînement des lettres.  Dans un vrai
-          texte français, on trouve partout « ES », « LE », « DE », « NT » ;
-          dans un charabia, non.  PLUS LA VALEUR EST GRANDE (donc moins
-          négative), PLUS LE TEXTE RESSEMBLE À DU FRANÇAIS.
+    QUEL INSTRUMENT CHOISIR ?  La scytale est un code de PERMUTATION : elle
+    déplace les lettres sans en remplacer aucune.  Tous les candidats ont donc
+    exactement les mêmes fréquences de lettres, et comparer les fréquences ne
+    peut pas les départager.  Ce qui les distingue, c'est l'ORDRE : on utilise
+    `vraisemblance`, dont la valeur est d'autant plus GRANDE que le texte
+    ressemble à du français.
 
     CE QUE TU DOIS FAIRE :
         étape 1 : prépare trois « boîtes » pour mémoriser le meilleur candidat
@@ -527,129 +517,18 @@ def attaque_scytale(chiffre):
     # ----------------------------------------------------------------------
 
 
-# ==========================================================================
-# PARTIE C — LE CODE DE SUBSTITUTION : CÉSAR
-# ==========================================================================
-#
-# RAPPEL DU COURS.  Cette fois, on REMPLACE chaque lettre par une autre : la
-# lettre de rang n devient la lettre de rang (n + cle) mod 26.  Avec la clef 3 :
-# A devient D, B devient E, ..., Z revient à C.
-#
-# POURQUOI L'ANALYSE DE FRÉQUENCES MARCHE ICI (et pas avec la scytale) : chaque
-# lettre du clair est toujours remplacée par LA MÊME lettre du chiffré.  Le E du
-# français (environ 15 % du texte) reste donc la lettre la plus fréquente du
-# message chiffré, simplement décalée.  En comparant les deux histogrammes, on
-# devine le décalage.
-#
-# ATTENTION À UN PIÈGE CLASSIQUE : l'indice de coïncidence (que tu verras au
-# TP 2 et au TP 3) est LE MÊME pour les 26 décalages : inutile pour César.  Ce
-# qui permet de trancher, c'est de comparer les fréquences lettre par lettre
-# avec celles du français : c'est ce que fait `distance_au_francais`.
-
-
-def cesar_chiffrer(texte, cle):
-    """C.1 — OBJECTIF : chiffrer un texte avec le code de César de clef `cle`.
-
-    CONVENTIONS DU TP (elles servent à tous les tests) :
-        * le texte est mis en MAJUSCULES ;
-        * seules les lettres de A à Z sont décalées ;
-        * les autres caractères (espace, virgule, point, apostrophe) sont
-          RECOPIÉS SANS MODIFICATION, à leur place.
-
-    CE QUE TU DOIS FAIRE :
-        étape 1 : prépare une chaîne vide : `chiffre = ""` ;
-        étape 2 : parcours le texte mis en majuscules ;
-        étape 3 : pour chaque caractère :
-                    - s'il est entre "A" et "Z" :
-                        * trouve son rang dans l'alphabet :
-                          `ALPHABET.index(caractere)`
-                        * ajoute la clef, puis « reviens au début » avec le
-                          reste de la division par 26 :
-                          `nouveau_rang = (rang + cle) % 26`
-                        * la nouvelle lettre est `ALPHABET[nouveau_rang]` ;
-                    - sinon (espace, ponctuation...) : garde le caractère tel
-                      quel ;
-        étape 4 : renvoie la chaîne `chiffre`.
-
-    RAPPELS PYTHON :
-        * `ALPHABET.index("C")` vaut 2, `ALPHABET[2]` vaut "C" ;
-        * `(rang + cle) % 26` reste toujours entre 0 et 25 : c'est ce qui fait
-          que Z + 1 donne A, et non une lettre qui n'existe pas ;
-        * `chiffre += ALPHABET[nouveau_rang]` ajoute la lettre au résultat.
-
-    EXEMPLES (ce que les tests vérifient) :
-        cesar_chiffrer("AVE", 3)                ->  "DYH"
-        cesar_chiffrer("XYZ", 3)                ->  "ABC"    (retour au début)
-        cesar_chiffrer("BONJOUR, LE MONDE", 3)  ->  "ERQMRXU, OH PRQGH"
-    """
-    # --- À COMPLÉTER ---
-    chiffre = ...                                      # une chaîne vide
-    for caractere in texte.upper():                    # parcours le texte
-        if "A" <= caractere <= "Z":                    # est-ce une lettre ?
-            rang = ALPHABET.index(...)                 # son rang (0 à 25)
-            nouveau_rang = (rang + ...) % ...          # on décale, modulo 26
-            chiffre += ALPHABET[...]                   # la nouvelle lettre
-        else:
-            chiffre += ...                             # recopie le caractère tel quel
-    return ...                                         # renvoie le texte chiffré
-
-    # ----------------------------------------------------------------------
-    # ✅ SOLUTION
-    # ----------------------------------------------------------------------
-    #     chiffre = ""
-    #     for caractere in texte.upper():
-    #         if "A" <= caractere <= "Z":
-    #             rang = ALPHABET.index(caractere)
-    #             nouveau_rang = (rang + cle) % 26
-    #             chiffre += ALPHABET[nouveau_rang]
-    #         else:
-    #             chiffre += caractere
-    #     return chiffre
-    # ----------------------------------------------------------------------
-
-
-def cesar_dechiffrer(texte_chiffre, cle):
-    """C.2 — OBJECTIF : déchiffrer un message chiffré par César.
-
-    POURQUOI C'EST FACILE (et important) : déchiffrer, c'est décaler dans
-    l'autre sens, donc de -cle.  Et comme « reculer de 3 » revient au même que
-    « avancer de 23 » (3 + 23 = 26), on peut réutiliser exactement la fonction
-    précédente avec le décalage `(-cle) % 26`.
-
-    CE QUE TU DOIS FAIRE :
-        écris UNE SEULE ligne, qui appelle la fonction C.1 :
-            return cesar_chiffrer(texte_chiffre, (-cle) % 26)
-        C'est tout !  Et c'est une leçon de programmation : quand on a écrit une
-        fonction juste, on la réutilise au lieu de recopier du code (moins de
-        code, moins de fautes).
-
-    RAPPELS PYTHON :
-        * `(-cle) % 26` calcule le décalage inverse.  Pour cle = 3, cela vaut
-          23 : compter 23 cases en avant, c'est comme reculer de 3.
-
-    EXEMPLE (ce que les tests vérifient) :
-        cesar_dechiffrer("ERQMRXU, OH PRQGH", 3)  ->  "BONJOUR, LE MONDE"
-        Et bien sûr, pour toutes les clefs : déchiffrer(chiffrer(x)) = x.
-    """
-    # --- À COMPLÉTER : une seule ligne suffit ! ---
-    return ...                                         # appelle cesar_chiffrer
-
-    # ----------------------------------------------------------------------
-    # ✅ SOLUTION
-    # ----------------------------------------------------------------------
-    #     return cesar_chiffrer(texte_chiffre, (-cle) % 26)
-    # ----------------------------------------------------------------------
-
-
 def forcer_cesar(texte_chiffre):
-    """C.3 — OBJECTIF : retrouver la clef et le message SANS CONNAÎTRE LA CLEF.
+    """C.2 — ★ CRYPTANALYSE ★ retrouver la clef et le message sans la connaître.
 
-    POURQUOI (COURS) : il n'y a que 26 clefs possibles.  On les essaie donc
-    toutes, et l'on garde celle qui donne le texte le plus proche du français.
-    Mais « le plus proche » doit se mesurer : c'est le rôle de la fonction
-    `distance_au_francais`, qui compare les fréquences du candidat à celles du
-    français.  PLUS LA DISTANCE EST PETITE, plus le texte ressemble à du
-    français.
+    POURQUOI (COURS) : il n'y a que 26 clefs possibles ; on les essaie toutes.
+    Ici les lettres ont été REMPLACÉES : le E du français (environ 15 % du
+    texte) reste la lettre la plus fréquente du message chiffré, simplement
+    décalée.  On compare donc les FRÉQUENCES avec celles du français.
+
+    ATTENTION À UN PIÈGE CLASSIQUE : l'indice de coïncidence (que tu verras au
+    TP 3) est LE MÊME pour les 26 décalages : il est inutile ici.  Ce qui permet
+    de trancher, c'est la comparaison des fréquences lettre par lettre, que fait
+    `distance_au_francais`.
 
     CE QUE TU DOIS FAIRE :
         étape 1 : prépare trois boîtes :
@@ -661,9 +540,8 @@ def forcer_cesar(texte_chiffre):
                       candidat = cesar_dechiffrer(texte_chiffre, cle)
                       distance = distance_au_francais(candidat)
         étape 4 : si `meilleure_distance is None` ou si cette distance est
-                  MEILLEURE (donc plus petite) que la précédente, mets à jour
-                  les trois boîtes (comme pour la scytale, mais dans l'autre
-                  sens : ici on cherche la plus PETITE valeur) ;
+                  MEILLEURE (donc plus PETITE) que la précédente, mets à jour
+                  les trois boîtes ;
         étape 5 : renvoie `(meilleure_cle, meilleur_texte)`.
 
     RAPPELS PYTHON :
@@ -709,76 +587,101 @@ def forcer_cesar(texte_chiffre):
     # ----------------------------------------------------------------------
 
 
-# ==========================================================================
-# PARTIE D — HISTOIRE, KERCKHOFFS ET MESSAGES TRUQUÉS
-# ==========================================================================
+def identifier_et_dechiffrer(message):
+    """C.3 — ★ CRYPTANALYSE ★ reconnaître le chiffrement, puis le casser.
 
-def message_compromis(message_clair, texte_chiffre_saisi):
-    """D.1 — OBJECTIF : vérifier qu'un message chiffré contient bien la phrase
-    que l'on croit y voir, en ignorant majuscules, espaces et ponctuation.
+    POURQUOI (COURS) : dans la réalité, un cryptanalyste reçoit un texte et ne
+    sait même pas COMMENT il a été chiffré.  Sa première question est donc :
+    « à quoi ai-je affaire ? ».  C'est l'exercice que te proposent les trois
+    messages MYSTÈRE : ils ont été chiffrés par une scytale ou par un César, on
+    ne te dit pas lequel.
 
-    POURQUOI (COURS ET HISTOIRE) : en 1587, Marie Stuart correspondait avec ses
-    partisans par un chiffre qu'Élisabeth d'Angleterre connaissait.  Les
-    services de la reine glissèrent dans un message une phrase que Marie ne
-    pouvait que reprendre, presque mot pour mot : une « lettre de la fourche »
-    qui servit de preuve à son procès.  Pour que le piège fonctionne, il faut
-    pouvoir vérifier automatiquement qu'une phrase donnée se retrouve dans un
-    document, quelles que soient la casse et la ponctuation.  C'est exactement
-    le principe des codes d'authentification (MAC) vus en fin de cours.
+    COMMENT RECONNAÎTRE LE CHIFFREMENT ?  En essayant les DEUX attaques que tu
+    viens d'écrire, puis en comparant les deux meilleurs candidats.  Celui des
+    deux qui ressemble le plus à du français a été obtenu par la bonne méthode.
+    Tu n'as donc besoin d'aucune formule magique : tu as besoin de tes deux
+    fonctions et d'un instrument de mesure.  (On mesure ici avec
+    `vraisemblance`, qui compare les deux candidats sur le même critère.)
 
     CE QUE TU DOIS FAIRE :
-        étape 1 : nettoie les deux textes avec ta fonction A.1, appelée ici
-                  `nettoyer_simple` (elle enlève espaces, accents et
-                  ponctuation, et met en majuscules) ;
-        étape 2 : teste si le message nettoyé se trouve DANS le document
-                  nettoyé, avec l'opérateur `in` :
-                      "DE" in "ABDE"   ->  True   (vrai)
-                      "FUITE" in "ATTAQUE"  ->  False  (faux)
-        étape 3 : renvoie le résultat (True ou False).
+        étape 1 : mets le message en lettres seules :
+                      lettres = vider_les_espaces(message)
+                  (ni espaces ni ponctuation : on veut comparer des lettres) ;
+        étape 2 : attaque-le par les deux méthodes :
+                      cle_scytale, texte_scytale = attaque_scytale(lettres)
+                      cle_cesar, texte_cesar = forcer_cesar(lettres)
+        étape 3 : compare les deux candidats :
+                      if vraisemblance(texte_scytale) > vraisemblance(texte_cesar):
+                          return ("SCYTALE", cle_scytale, texte_scytale)
+                      return ("CESAR", cle_cesar, texte_cesar)
+        étape 4 : c'est fini !  Trois valeurs sont renvoyées : la méthode
+                  (« SCYTALE » ou « CESAR »), la clef et le texte clair.
 
-    RAPPELS PYTHON (le squelette est écrit juste en dessous, complète les trous) :
-        * `nettoyer_simple(message_clair)` : appel de ta fonction A.1 ;
-        * `in` teste l'appartenance ; `True` et `False` sont les deux booléens.
+    RAPPELS PYTHON :
+        * tu appelles tes propres fonctions : c'est fait pour ;
+        * une fonction peut renvoyer trois valeurs : `return (a, b, c)` ;
+        * on les relira ainsi : `methode, cle, texte = identifier_et_dechiffrer(m)`.
 
-    EXEMPLES (ce que les tests vérifient) — le document intercepté est un
-    mélange de texte chiffré et d'une phrase restée en clair, comme dans le
-    piège historique :
+    EXEMPLES (ce que les tests vérifient) :
+        m = scytale_chiffrer("LERENDEZVOUSESTFIXEAMIDI", 4)
+        identifier_et_dechiffrer(m)  ->  ("SCYTALE", 4, "LERENDEZVOUSEST...")
+        m = cesar_chiffrer("LE MESSAGE ARRIVE CE SOIR", 17)
+        identifier_et_dechiffrer(m)  ->  ("CESAR", 17, "LE MESSAGE ARRIVE...")
 
-        document = "XWWD TXH, O'DSSURFKH. ATTAQUE A L'AUBE, PREVENEZ LE BATELIER."
-        message_compromis("ATTAQUE A L AUBE", document)  ->  True
-        message_compromis("FUITE", document)             ->  False
+    CE QUE TU VAS EN FAIRE : les trois messages MYSTÈRE de ce TP.  Pour chacun,
+    cette seule fonction doit te dire la méthode, la clef ET le texte.
     """
     # --- À COMPLÉTER ---
-    message_propre = ...                               # nettoie le message clair
-    document_propre = ...                              # nettoie le document saisi
-    reponse = ...                                      # teste l'appartenance avec `in`
-    return reponse                                     # renvoie True ou False
+    lettres = vider_les_espaces(...)                   # lettres seulement
+
+    cle_scytale, texte_scytale = attaque_scytale(...)  # hypothèse 1
+    cle_cesar, texte_cesar = forcer_cesar(...)         # hypothèse 2
+
+    if vraisemblance(...) > vraisemblance(...):        # lequel est le plus français ?
+        return ("SCYTALE", ..., ...)
+    return ("CESAR", ..., ...)
 
     # ----------------------------------------------------------------------
     # ✅ SOLUTION
     # ----------------------------------------------------------------------
-    #     message_propre = nettoyer_simple(message_clair)
-    #     document_propre = nettoyer_simple(texte_chiffre_saisi)
-    #     return message_propre in document_propre
+    #     lettres = vider_les_espaces(message)
+    #
+    #     cle_scytale, texte_scytale = attaque_scytale(lettres)
+    #     cle_cesar, texte_cesar = forcer_cesar(lettres)
+    #
+    #     if vraisemblance(texte_scytale) > vraisemblance(texte_cesar):
+    #         return ("SCYTALE", cle_scytale, texte_scytale)
+    #     return ("CESAR", cle_cesar, texte_cesar)
     # ----------------------------------------------------------------------
 
 
-# ==========================================================================
-# PARTIE E — DEUX MESSAGES À DÉCRYPTER POUR DE VRAI
-# ==========================================================================
+# ###########################################################################
 #
-# Ces deux messages ont été chiffrés par ton professeur : l'un avec la scytale,
-# l'autre avec César.  LES CLEFS SONT INCONNUES !  C'est ton travail des parties
-# B et C qui va les retrouver.
+#  § C (suite) — LES MESSAGES INTERCEPTÉS
 #
-# Pour les déchiffrer, écris dans l'interpréteur Python (commande `python3`) :
+#  Voici les cinq messages que tu dois casser.  AUCUNE CLEF N'EST DONNÉE.
 #
-#     >>> from tp1_permutation import *
-#     >>> attaque_scytale(MESSAGE_SCYTALE)
-#     >>> forcer_cesar(MESSAGE_CESAR)
+#    MESSAGE_SCYTALE   chiffré par scytale       -> attaque_scytale
+#    MESSAGE_CESAR     chiffré par César         -> forcer_cesar
+#    MESSAGE_MYSTERE_1 méthode INCONNUE          -> identifier_et_dechiffrer
+#    MESSAGE_MYSTERE_2 méthode INCONNUE          -> identifier_et_dechiffrer
+#    MESSAGE_MYSTERE_3 méthode INCONNUE          -> identifier_et_dechiffrer
 #
-# (Les deux constantes ci-dessous sont remplies par le professeur : ne les
-# modifie pas, c'est le message intercepté.)
+#  Comment s'en servir ?  Dans l'interpréteur Python (commande `python3`) :
+#
+#      >>> from tp1_permutation import *
+#      >>> attaque_scytale(MESSAGE_SCYTALE)
+#      >>> forcer_cesar(MESSAGE_CESAR)
+#      >>> methode, cle, texte = identifier_et_dechiffrer(MESSAGE_MYSTERE_1)
+#      >>> print(methode, cle)
+#      >>> print(texte)
+#
+#  Les épreuves vérifient automatiquement que tu as trouvé la bonne méthode, la
+#  bonne clef et le bon texte : tu n'as donc pas besoin de recopier les réponses
+#  dans un coin, il suffit que tes fonctions soient justes.
+#
+#  (Ces constantes sont remplies par le professeur : ne les modifie pas, c'est
+#  le message intercepté.)
 
 # --- DÉBUT DE LA ZONE GÉNÉRÉE (outils/generer_messages.py) ---
 MESSAGE_SCYTALE = (
@@ -790,39 +693,91 @@ MESSAGE_CESAR = (
     "CV TFEMFZ GRIK UVDRZE DRKZE R C'RLSV VK RIIZMV R CR WIFEKZVIV "
     "RMREK DZUZ"
 )
+
+MESSAGE_MYSTERE_1 = (
+    "LSETETTILREAPRNRANEICRAAUEUACEORRIIPMVORLILNTAAEUXIVEDERTCRX"
+)
+
+MESSAGE_MYSTERE_2 = (
+    "WPMLETXPYEPDECPDEPQPCXPEZFEWSTGPCPEWPDECLGLFIZYECPACTDLFACTYEP"
+    "XAD"
+)
+
+MESSAGE_MYSTERE_3 = (
+    "LSADNOUIUEEEEATDTRJNIHERMGTELTADSENEEEEVAEREUUTXSRNAPDDPNRIX"
+)
 # --- FIN DE LA ZONE GÉNÉRÉE ---
 
 
 # ###########################################################################
 #
-#  § C — EXPÉRIENCES À FAIRE DANS L'INTERPRÉTEUR PYTHON
+#  § D — SUPPLÉMENT : LA LEÇON DE MARIE STUART (à lire, pas de code)
+#
+#  En 1586, Marie Stuart, prisonnière d'Élisabeth d'Angleterre, correspond avec
+#  ses partisans par un chiffre de substitution que les services de la reine
+#  savent déjà décoder — les mathématiques du chiffre sont donc percées, mais
+#  Marie l'ignore.  Les espions obtiennent bien plus que le texte : en 1587, ils
+#  glissent dans un courrier une phrase que Marie reprend presque mot pour mot,
+#  ce qui donne la « preuve » de sa participation au complot.  Elle est
+#  condamnée et exécutée.
+#
+#  Trois leçons, qui sont exactement celles du cours :
+#
+#   1. LA MÉTHODE FINIT TOUJOURS PAR ÊTRE CONNUE.  C'est le principe de
+#      Kerckhoffs : toute la sécurité doit tenir dans la CLEF, jamais dans le
+#      secret du système.  C'est pourquoi, dans ce TP, tu connais entièrement le
+#      code (scytale, César) et que tu dois quand même retrouver la clef.
+#
+#   2. LE POINT FAIBLE EST SOUVENT HUMAIN.  Un code qui ne transmet aucun
+#      message compromettant, mais qui sert à en fabriquer — c'est le principe
+#      des « lettres de la fourche ».
+#
+#   3. ON VÉRIFIE TOUJOURS QUI A PARLÉ.  Vérifier qu'une phrase donnée figure
+#      bien dans un document, sans se laisser tromper par les espaces, les
+#      majuscules ou la ponctuation, est une brique de ce qu'on appelle
+#      aujourd'hui un code d'authentification (MAC, chapitre 6 du cours).
+#
+#  Question de rapport n° 5 : à ton avis, pourquoi la sécurité d'un système
+#  cryptographique ne doit-elle JAMAIS reposer sur le secret de son
+#  fonctionnement ?  Réponds en t'appuyant sur ce que tu viens de faire dans ce
+#  TP (tu connaissais le code, et cela ne t'a pas empêché de casser les
+#  messages).
+#
+# ###########################################################################
+
+
+# ###########################################################################
+#
+#  § E — EXPÉRIENCES À FAIRE DANS L'INTERPRÉTEUR PYTHON
 #
 #  Lance `python3`, puis tape les instructions ci-dessous (recopie-les, et
-#  observe).  Ces expériences sont la partie « cryptanalyse » du programme.
+#  observe).  Ces expériences sont la partie « méthode scientifique » du TP :
+#  c'est ainsi que l'on choisit son instrument de mesure.
 #
 # ###########################################################################
 #
-# EXPÉRIENCE 1 — la scytale ne change pas les fréquences
+# EXPÉRIENCE 1 — vérifier que la scytale ne change pas les fréquences
 #     >>> from tp1_permutation import *
 #     >>> clair = "LEGRANDMESSAGERARRIVECETTEAPRESMIDI"
 #     >>> chiffre = scytale_chiffrer(clair, 7)
 #     >>> comptage(clair)["E"], comptage(chiffre)["E"]
-#     Réponse : les deux comptent le même nombre de E.  Conclusion : comparer
-#     les fréquences ne peut pas départager les candidats d'une scytale.
+#     Réponse : les deux comptent le même nombre de E.
+#     Conclusion à écrire dans ton rapport : comparer les fréquences ne peut
+#     pas départager les candidats d'une scytale.  Il faut autre chose.
 #
-# EXPÉRIENCE 2 — ce qui distingue le bon candidat, c'est l'ordre
+# EXPÉRIENCE 2 — et cet autre chose, c'est l'ordre des lettres
 #     >>> vraisemblance(clair)
 #     >>> vraisemblance(chiffre)
-#     La note du texte clair est plus grande (moins négative) : c'est le critère
-#     utilisé dans B.3.
+#     La note du texte clair est plus grande (moins négative) que celle du texte
+#     chiffré : c'est le critère utilisé dans C.1.
 #
-# EXPÉRIENCE 3 — voir les fréquences du message César intercepté
-#     >>> print(tableau_lettres(comptage(MESSAGE_CESAR)))
+# EXPÉRIENCE 3 — l'analyse de fréquences « à la main » sur MESSAGE_CESAR
+#     >>> from outils.texte_francais import tableau_lettres, frequences_du_francais
+#     >>> print(tableau_lettres(compter_lettres(MESSAGE_CESAR)))
 #     >>> print(tableau_lettres(frequences_du_francais(), en_pourcentage=True))
-#     Compare les deux tableaux : la lettre la plus fréquente du message
-#     chiffré est le « E du français » décalé.  De combien de cases ?  C'est la
-#     clef !  (C'est l'analyse de fréquences historique ; la fonction C.3 le fait
-#     automatiquement.)
+#     Compare les deux tableaux : la lettre la plus fréquente du message chiffré
+#     est le « E du français » décalé.  De combien de cases ?  C'est la clef !
+#     Compare ensuite avec ce que te donne forcer_cesar.
 #
 # EXPÉRIENCE 4 — voir les 26 distances du message César
 #     >>> for cle in range(26):
@@ -830,9 +785,14 @@ MESSAGE_CESAR = (
 #     ...     print(cle, round(distance_au_francais(candidat), 1), candidat[:30])
 #     La ligne dont la distance est la plus PETITE est la bonne clef.
 #
+# EXPÉRIENCE 5 — les messages mystères, en une ligne
+#     >>> for message in (MESSAGE_MYSTERE_1, MESSAGE_MYSTERE_2, MESSAGE_MYSTERE_3):
+#     ...     methode, cle, texte = identifier_et_dechiffrer(message)
+#     ...     print(methode, cle, texte[:50])
+#
 # ###########################################################################
 #
-#  § D — QUESTIONS DE RAPPORT (à rédiger et à rendre avec le fichier)
+#  § F — QUESTIONS DE RAPPORT (à rédiger et à rendre avec le fichier)
 #
 #  Réponds en trois ou quatre phrases par question, en t'appuyant sur ce que tu
 #  as observé.  Écris tes réponses dans un fichier texte à part, ou à la main.
@@ -841,33 +801,48 @@ MESSAGE_CESAR = (
 #
 # QUESTION 1. Pourquoi les fréquences des lettres d'un texte chiffré par la
 # scytale sont-elles exactement celles du texte clair ?  Quelle conséquence
-# pour la cryptanalyse ?
+# pour la cryptanalyse ?  (Expérience 1.)
 #
-# QUESTION 2. Combien y a-t-il de clefs possibles pour un message de 40 lettres
-# chiffré par la scytale ?  (Utilise ton programme : len(cle_scytale_possibles(40)).)
-# Que peut-on en conclure sur le coût de l'attaque ?
+# QUESTION 2. Explique, avec tes mots, la différence entre les deux instruments
+# de mesure `vraisemblance` et `distance_au_francais`, et pourquoi l'un ne peut
+# pas remplacer l'autre.  (Expériences 1, 2 et 4.)
 #
-# QUESTION 3. Dans l'expérience 3, de combien de cases fallait-il décaler la
+# QUESTION 3. Combien y a-t-il de clefs possibles pour un message de 40 lettres
+# chiffré par la scytale ?  (Utilise ton programme :
+# len(cle_scytale_possibles(40)).)  Compare avec les 26 clefs de César : lequel
+# des deux chiffres est le plus solide du point de vue du nombre de clefs ?
+#
+# QUESTION 4. Pour chacun des trois messages MYSTÈRE, indique la méthode, la
+# clef et les dix premières lettres du texte clair.  Comment ton programme a-t-il
+# décidé ?  (Réponse attendue : en comparant les deux candidats avec
+# `vraisemblance`, et non au hasard.)
+#
+# QUESTION 5. Dans l'expérience 3, de combien de cases fallait-il décaler la
 # lettre la plus fréquente pour la faire coïncider avec le E du français ?
-# Retrouve-t-on la clef trouvée par forcer_cesar ?
+# Retrouves-tu la clef donnée par forcer_cesar ?  Que se passerait-il si le
+# message était très court (par exemple vingt lettres) ?
 #
-# QUESTION 4. Deux méthodes pour reconnaître du français ont été utilisées :
-# la vraisemblance (B.3) et la distance au français (C.3).  Pourquoi ne peut-on
-# pas les échanger ?  (Relis les rappels du cours au début des parties B et C.)
-#
-# QUESTION 5. Qu'est-ce que le principe de Kerckhoffs, et en quoi ce TP le
-# respecte-t-il ?  (Indice : tu connais le fonctionnement de la scytale et de
-# César, et pourtant tu dois retrouver la clef.)
-#
-# QUESTION 6. Le code de César a 26 clefs, la scytale en a une poignée : ces
-# chiffres sont-ils solides ?  Explique en une phrase ce qui rend un chiffre
-# « solide » du point de vue du nombre de clefs.
+# QUESTION 6. Marie Stuart (supplément § D) : pourquoi le fait que ses ennemis
+# connaissaient son code n'était-il pas, à lui seul, un désastre ?  Et pourquoi
+# cela serait-il inacceptable aujourd'hui, où l'on publie les algorithmes ?
 #
 
 
 if __name__ == "__main__":
     # Cette partie s'exécute quand on lance :   python3 tp1_permutation.py
     # Elle sert à vérifier d'un coup d'œil où tu en es.
+
+    def _inacheve(valeur):
+        """Vrai si la fonction n'est pas finie : il reste des « ... » ou rien.
+
+        On regarde aussi à l'intérieur des couples renvoyés, car certaines
+        fonctions renvoient plusieurs valeurs à la fois (la clef ET le texte).
+        """
+        if valeur is Ellipsis or valeur is None:
+            return True
+        if isinstance(valeur, (tuple, list)):
+            return any(_inacheve(element) for element in valeur)
+        return False
 
     def _essai(nom, appel):
         """Exécute un essai et affiche soit le résultat, soit un rappel gentil."""
@@ -876,33 +851,26 @@ if __name__ == "__main__":
         except Exception as erreur:                     # fonction incomplète ?
             print(f"  {nom} : pas encore terminée ({type(erreur).__name__})")
             return
-        if resultat is Ellipsis or resultat is None:    # il reste des ...
+        if _inacheve(resultat):                         # il reste des ...
             print(f"  {nom} : pas encore terminée (les ... du squelette sont encore là)")
         else:
             print(f"  {nom} -> {resultat}")
 
-    print("Voici où tu en es dans tes neuf fonctions :")
-    _essai("A.1 nettoyer_simple('Bonjour, le monde !')",
-           lambda: nettoyer_simple("Bonjour, le monde !"))
-    _essai("A.2 compter_lettres('BONJOUR')['O']",
+    print("Voici où tu en es dans tes six fonctions :")
+    print("  --- § B : le code à écrire ---")
+    _essai("B.1 compter_lettres('BONJOUR')['O']",
            lambda: compter_lettres("BONJOUR")["O"])
-    _essai("B.1 cle_scytale_possibles(40)",
-           lambda: cle_scytale_possibles(40))
-    _essai("B.2 decouper_en_morceaux('ABCDEFGH', 3)",
-           lambda: decouper_en_morceaux("ABCDEFGH", 3))
-    _essai("B.3 attaque_scytale(MESSAGE_SCYTALE)",
-           lambda: attaque_scytale(MESSAGE_SCYTALE))
-    _essai("C.1 cesar_chiffrer('AVE', 3)",
+    _essai("B.2 cesar_chiffrer('AVE', 3)",
            lambda: cesar_chiffrer("AVE", 3))
-    _essai("C.2 cesar_dechiffrer('ERQMRXU, OH PRQGH', 3)",
+    _essai("B.3 cesar_dechiffrer('ERQMRXU, OH PRQGH', 3)",
            lambda: cesar_dechiffrer("ERQMRXU, OH PRQGH", 3))
-    _essai("C.3 forcer_cesar(MESSAGE_CESAR)",
+    print("  --- § C : ★ cryptanalyse ★ ---")
+    _essai("C.1 attaque_scytale(MESSAGE_SCYTALE)",
+           lambda: attaque_scytale(MESSAGE_SCYTALE))
+    _essai("C.2 forcer_cesar(MESSAGE_CESAR)",
            lambda: forcer_cesar(MESSAGE_CESAR))
-    _essai("D.1 message_compromis('ATTAQUE A L AUBE', document)",
-           lambda: message_compromis(
-               "ATTAQUE A L AUBE",
-               "XWWD TXH, O'DSSURFKH. ATTAQUE A L'AUBE, PREVENEZ LE BATELIER."))
-
+    _essai("C.3 identifier_et_dechiffrer(MESSAGE_MYSTERE_1)",
+           lambda: identifier_et_dechiffrer(MESSAGE_MYSTERE_1))
     print()
     print("Quand tout est écrit, lance les épreuves :")
     print("    python3 test_tp1_permutation.py")
