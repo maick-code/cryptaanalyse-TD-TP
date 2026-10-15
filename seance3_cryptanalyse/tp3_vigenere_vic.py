@@ -52,7 +52,7 @@ LES SEPT FONCTIONS À ÉCRIRE
   § D — code de VIC
    D.1  chiffre_du_damier               D.2  dechiffrer_message_vic
 
-  Et, en jeu, les SIX messages interceptés de la séance (voir la fin du § D).
+  Et, en jeu, les CINQ messages interceptés de la séance (voir la fin du § D).
 ==========================================================================
 """
 
@@ -637,7 +637,7 @@ def dechiffrer_message_vic(message_chiffre, cle, permutation=PERMUTATION_VIC):
 
 # ###########################################################################
 #
-#  § D (suite) — LES SIX MESSAGES INTERCEPTÉS
+#  § D (suite) — LES CINQ MESSAGES INTERCEPTÉS
 #
 #  LES QUATRE DÉPÊCHES VIGENÈRE — la période est INCONNUE pour toutes :
 #
