@@ -1,0 +1,5 @@
+# Fichiers produits par Python (à ne pas versionner)
+__pycache__/
+*.pyc
+# Journaux de Jupyter
+.ipynb_checkpoints/

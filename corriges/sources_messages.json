@@ -1,0 +1,136 @@
+{
+  "_commentaire": [
+    "FICHIER RÉSERVÉ AU PROFESSEUR — ne pas distribuer aux étudiants.",
+    "Il contient les messages en clair et les clefs de tous les TP.",
+    "Pour régénérer les messages chiffrés (et les empreintes des réponses) :",
+    "    python3 outils/generer_messages.py",
+    "Le script réécrit les zones marquées « ZONE GÉNÉRÉE » dans les fichiers de",
+    "TP, dans les corrigés et dans les fichiers d'épreuves. Ne modifiez donc",
+    "jamais ces zones à la main.",
+    "",
+    "Champs possibles pour chaque message :",
+    "  methode      : scytale | cesar | vigenere | vic",
+    "  cle          : entier (scytale, cesar), lettres (vigenere) ou chiffres (vic)",
+    "  cle_transposition (vic) : permutation des 10 colonnes, ou null pour la permutation par défaut",
+    "  preparation  : nettoyer    (on ne garde que A...Z) ",
+    "                 majuscules  (on garde espaces et ponctuation, en majuscules)",
+    "  longueur     : longueur exacte souhaitée pour le message préparé (facultatif)",
+    "  clair        : le message en clair, tel qu'il doit être retrouvé par les étudiants"
+  ],
+  "tp1_scytale": {
+    "methode": "scytale",
+    "cle": 8,
+    "preparation": "nettoyer",
+    "clair": "LA REUNION SECRETE EST FIXEE DEMAIN A DIX HEURES PRES DU VIEUX PONT DE LA RIVIERE",
+    "commentaire": "Le X de complément de la scytale apparaît ici : 66 lettres, clef 8, donc 6 X ajoutés."
+  },
+  "tp1_cesar": {
+    "methode": "cesar",
+    "cle": 17,
+    "preparation": "majuscules",
+    "clair": "LE CONVOI PART DEMAIN MATIN A L'AUBE ET ARRIVE A LA FRONTIERE AVANT MIDI",
+    "commentaire": "59 lettres : assez pour que la comparaison des fréquences soit fiable."
+  },
+  "tp2_vigenere1": {
+    "methode": "vigenere",
+    "cle": "MONDE",
+    "preparation": "majuscules",
+    "clair": "LE CONSEIL DE LA NATION SE REUNIT DEMAIN MATIN A HUIT HEURES. IL SERA QUESTION DES TRAVAUX DU PORT, DE LA ROUTE NATIONALE ET DU NOUVEAU MARCHE. LES DELEGUES DES VILLAGES VOISINS ONT ANNONCE LEUR ARRIVEE POUR LA NUIT. LE PRESIDENT DU CONSEIL PRESENTERA SON RAPPORT DEVANT LES NOTABLES DE LA REGION. TOUT LE MONDE ATTEND CETTE REUNION AVEC IMPATIENCE CAR LES DECISIONS PRISES CHANGERONT LA VIE DE NOS QUARTIERS POUR DE LONGUES ANNEES.",
+    "commentaire": "Période 5 (clef MONDE) ; espaces et ponctuation conservés dans le message chiffré."
+  },
+  "tp2_vigenere2": {
+    "methode": "vigenere",
+    "cle": "MATINEE",
+    "preparation": "majuscules",
+    "clair": "LE DIRECTEUR DU PORT A RECU NOTRE LETTRE. IL REPOND QUE LES TRAVAUX DE DRAGAGE COMMENCERONT AU DEBUT DU MOIS PROCHAIN ET QUE LES BATEAUX DEVRONT RESTER AU MOUILLAGE PENDANT DIX JOURS. LES PATRONS DES PECHERIES DEMANDENT UNE INDEMNITE POUR LA PERTE DE LEUR PECHE. NOUS AVONS PROPOSE UNE RENCONTRE AVEC LES RESPONSABLES DU MINISTERE.",
+    "commentaire": "Période 7 (clef MATINEE) ; deuxième message à décrypter."
+  },
+  "tp3_vigenere1": {
+    "methode": "vigenere",
+    "cle": "CLEF",
+    "preparation": "nettoyer",
+    "longueur": 620,
+    "clair": "LORSQUE LE BATEAU QUITTA LE QUAI, UNE FOULE NOMBREUSE ATTENDAIT SUR LA RIVE POUR VOIR PASSER LES MARCHANDISES ET LES VOYAGEURS VENUS DE LOIN. LE COMMANDANT SALUA LA MAISON BLANCHE DES DOUANES, PUIS IL DONNA L'ORDRE DE PARTIR. LE FLEUVE ETAIT LARGE ET CALME CE MATIN LA. LES ENFANTS COURAIENT LE LONG DE LA BERGE EN AGITANT LES MAINS. PERSONNE NE SAVAIT ENCORE QUE LA CRUE ARRIVERAIT PLUS TOT QUE PREVU CETTE ANNEE. SUR LA RIVE OPPOSEE, LES PECHEURS REPARAIENT LEURS FILETS EN PARLANT DU PRIX DU POISSON AU MARCHE DU LUNDI. LE VIEUX PATRON RACONTAIT QUE DANS SA JEUNESSE IL AVAIT DESCENDU LE FLEUVE JUSQU'A LA MER AVEC UNE CHARGE DE BOIS ET DE SEL. IL SE SOUVENAIT DES NUITS SANS ETOILES OU LE COURANT POUSSAIT LA BARQUE VERS LES BANCS DE SABLE. LE PILOTE CONNAISSAIT CHAQUE TOURBILLON ET CHAQUE ROCHE. IL DISAIT QUE LE FLEUVE CHANGE DE VISAGE CHAQUE SAISON ET QU'IL FAUT SAVOIR L'ECOUTER. LES FEMMES VENDAIENT DES BANANES, DU MANIOC ET DU POISSON GRILLE SOUS UN PAGNON DE PALMES. UN PEU PLUS LOIN, DES OUVRIERS CHARGEAIENT DES SACS DE CIMENT SUR UNE BARGE PLATE. LE SOLEIL MONTAIT DANS LE CIEL ET LA CHALEUR DEVENAIT LOURDE. LE CHEF DE PORT NOTAIT CHAQUE DEPART DANS UN GRAND REGISTRE NOIR. A MIDI, LA CLOCHE DE LA MISSION SONNA TROIS FOIS.",
+    "commentaire": "Texte long (période 4) pour l'analyse de Kasiski et l'indice de coïncidence."
+  },
+  "tp3_vigenere2": {
+    "methode": "vigenere",
+    "cle": "MYSTERE",
+    "preparation": "nettoyer",
+    "longueur": 700,
+    "clair": "LE COURRIER ARRIVE DEUX FOIS PAR SEMAINE PAR LE BATEAU DE LA POSTE. IL APPORTAIT LES LETTRES DE LA FAMILLE, LES JOURNAUX DE LA CAPITALE ET PARFOIS UN MANDAT ATTENDU DEPUIS DES MOIS. LE FACTEUR DU QUARTIER CONNAISSAIT TOUT LE MONDE ET LISAIT LES ADRESSES A VOIX HAUTE DEVANT LA PORTE. LES ENFANTS SE RASSEMBLAIENT AUTOUR DE LUI POUR ENTENDRE LES NOUVELLES DU PAYS. LE MAITRE D'ECOLE OUVRAIT LES JOURNAUX ET COMMENTAIT LES DECISIONS DU GOUVERNEMENT. IL PARLAIT DES ROUTES, DES PONTS, DES IMPOTS ET DES ECOLES NOUVELLES. LES ANCIENS ECOUTAIENT EN SILENCE ET COMPARAIENT AVEC LE TEMPS PASSE. LE MARCHE DU SAMEDI RESTAIT LE GRAND EVENEMENT DE LA SEMAINE. ON Y VENAIT DE TRES LOIN POUR VENDRE DES ANIMAUX, DES PANIERS, DES TISSUS ET DES OUTILS. LES PRIX SE DISCUTAIENT A VOIX BASSE SOUS LES ARBRES. LA PLUIE AVAIT ETE RARE CETTE ANNEE ET LES CHAMPS SOUFFRAIENT. CHACUN MESURAIT SES RESERVES ET CALCULAIT COMBIEN DE MOIS ELLES POURRAIENT TENIR. LE CHEF DE TERRE AVAIT FAIT CREUSER UN PUITS PROFOND AU MILIEU DU VILLAGE. LES FEMMES Y PORTAIENT DES BASSINES ET DES BIDONS SUR LA TETE. LE SOIR, LES FEUX S'ALLUMAIENT DEVANT LES CASES ET LES HISTOIRES RECOMMENCAIENT. ON PARLAIT DES ANCETRES, DES VOYAGES ANCIENS ET DES PROMESSES QUI N'AVAIENT JAMAIS ETE TENUES. LE VIEUX CHASSEUR RACONTAIT COMMENT IL AVAIT SUIVI UNE PANTHERE PENDANT TROIS JOURS.",
+    "commentaire": "Deuxième texte long (période 7) pour l'attaque complète."
+  },
+  "tp3_vic": {
+    "methode": "vic",
+    "cle": "5241730219",
+    "cle_transposition": [
+      3,
+      0,
+      7,
+      1,
+      9,
+      2,
+      5,
+      8,
+      4,
+      6
+    ],
+    "preparation": "nettoyer",
+    "clair": "LE TRAIN EST EN RETARD, IL EST TARD ET LE SOLEIL DONNE DANS LES TERRES. LES ETOILES SORTENT TRES TARD.",
+    "commentaire": "Message écrit AVEC LES 10 LETTRES DU DAMIER (S E N A T R O I D L) et de longueur multiple de 10 : c'est la règle du VIC. Le script vérifie cette contrainte et indique combien de lettres ajouter ou retirer."
+  },
+  "tp1_mystere1": {
+    "methode": "scytale",
+    "cle": 6,
+    "preparation": "nettoyer",
+    "clair": "LE COLIS ARRIVE PAR LE TRAIN DE NUIT ET REPART AU MATIN AVEC LE COURRIER",
+    "commentaire": "Message mystère n° 1 : chiffré par scytale. « preparation » vaut nettoyer, donc le texte clair attendu est sans espaces ni ponctuation : l'étudiant doit travailler sur les lettres seules."
+  },
+  "tp1_mystere2": {
+    "methode": "cesar",
+    "cle": 11,
+    "preparation": "nettoyer",
+    "clair": "LE BATIMENT EST RESTE FERME TOUT L HIVER ET LES TRAVAUX ONT REPRIS AU PRINTEMPS",
+    "commentaire": "Message mystère n° 2 : chiffré par César (décalage 11). La preuve que c'est bien du César : un seul décalage ramène les fréquences sur celles du français."
+  },
+  "tp1_mystere3": {
+    "methode": "scytale",
+    "cle": 5,
+    "preparation": "nettoyer",
+    "clair": "LE MESSAGER ATTEND DEVANT LA PORTE DU JARDIN DEPUIS UNE HEURE ENTIERE",
+    "commentaire": "Message mystère n° 3 : chiffré par scytale, avec une autre clef. Deux des trois messages mystères sont des scytales : l'étudiant ne doit pas deviner d'après l'ordre, mais mesurer."
+  },
+  "tp2_urgent": {
+    "methode": "vigenere",
+    "cle": "SECRET",
+    "preparation": "majuscules",
+    "clair": "LE PREFET A RECU NOTRE DEPECHE. IL ORDONNE QUE LE CONVOI PARTE CETTE NUIT PAR LA ROUTE DE LA COTE, EN EVITANT LES VILLAGES. LES CHEVAUX SERONT CHANGES A LA FERME DU MOULIN. L ALERTE SERA DONNEE AU POSTE DE GARDE AVANT MIDI, ET CE PAPIER SERA BRULE AUSSITOT LA LECTURE TERMINEE. SI LA ROUTE EST COUPEE, IL FAUT PASSER PAR LE CHEMIN DE LA VALLERIE ET ATTENDRE LA NUIT POUR TRAVERSER LE PONT DE PIERRE. LES HOMMES DU RELAIS ONT DES MONTURES FRAICHES ET DU PAIN POUR LA ROUTE. IL NE FAUT PARLER A PERSONNE AVANT LA PORTE DE LA VILLE, ET REMETTRE LE PLI AU CHEF DU POSTE, QUI SEUL CONNAIT LE MOT DE PASSE.",
+    "commentaire": "Dépêche inédite de la partie CRYPTANALYSE du TP 2 (472 lettres, clef SECRET, période 6 donnée aux étudiants : PERIODE_URGENT). ATTENTION si vous la réécrivez : un texte qui concentre beaucoup de lettres rares dans une même colonne (par exemple des « Z » de terminaisons en -EZ, -AUREZ) fait échouer l'attaque par khi-deux sur cette colonne. C'est d'ailleurs une bonne leçon à montrer aux étudiants : ce n'est pas le programme qui est faux, c'est l'échantillon qui est trop pauvre."
+  },
+  "tp2_connu": {
+    "methode": "vigenere",
+    "cle": "VEILLE",
+    "preparation": "nettoyer",
+    "longueur": 320,
+    "fragment": 72,
+    "clair": "LE BATEAU QUITTE LE PORT A LA MAREE HAUTE AVEC UN CHARGEMENT DE BOIS ET DE FER. LE CAPITAINE A RECU L ORDRE DE PASSER AU LARGE DES ILES ET DE NE PAS REPONDRE AUX SIGNAUX DE LA COTE. LA MER EST CALME, LE VENT VIENT DU NORD EST, LE VOYAGE DURERA DEUX JOURS ET DEUX NUITS. A L ARRIVEE, LE PILOTE ATTENDRA LE BATEAU DANS LA PASSE DU SUD ET FERA MONTER A BORD DEUX HOMMES DE CONFIANCE AVEC DES PAPIERS ET DES CARTES.",
+    "commentaire": "Attaque à texte connu : les étudiants reçoivent MESSAGE_INTERCEPTE (chiffré, 320 lettres) et TEXTE_CONNU, les 72 premières lettres du clair (un agent a pu photographier le début du rapport). 72 lettres pour une clef de 6 lettres : largement assez pour retrouver la période de la suite des décalages."
+  },
+  "tp3_nouveau1": {
+    "methode": "vigenere",
+    "cle": "BOUSSOLE",
+    "preparation": "nettoyer",
+    "longueur": 540,
+    "clair": "QUAND LA NUIT TOMBE SUR LA VILLE, LES LAMPES S ALLUMENT UNE A UNE LE LONG DES QUAIS ET LE PORT CHANGE DE VISAGE. LES GRUES IMMOBILES DESSINENT DES OMBRES LONGUES SUR LES ENTREPOTS, ET L ON ENTEND SEULEMENT LE CLAPOTIS DE L EAU CONTRE LES COQUES. UN VIEIL HOMME PASSE AVEC UN CHIEN, S ARRETE UN INSTANT POUR REGARDER LES FEUX DES BATEAUX AU LARGE, PUIS CONTINUE SON CHEMIN SANS RIEN DIRE. DANS LES BUREAUX DU PORT, UNE LAMPE BRULE ENCORE : UN EMPLOYE CLASSE DES PAPIERS, COTE PAR COTE, COMME ON ALIGNE DES LETTRES SUR UNE PAGE. IL NOTE DANS UN CAHIER LES ARRIVEES DU JOUR, LES DEPARTS DU LENDEMAIN, LE NOM DES BATEAUX ET LA NATURE DES MARCHANDISES. PLUS TARD, QUAND TOUT SERA SILENCIEUX, IL SORTIRA PAR LA PETITE PORTE ET REGAGNERA SA MAISON EN LONGEANT LE CANAL. DEMAIN, AVANT LE LEVER DU JOUR, LES CAMIONS SERONT LA, LES HOMMES AUSSI, ET LA JOURNEE RECOMMENCERA COMME TOUTES LES AUTRES.",
+    "commentaire": "Troisième dépêche, à période INCONNUE (clef BOUSSOLE, 8 lettres). Elle sert d'exercice complet : indice de coïncidence, puis attaque colonne par colonne."
+  },
+  "tp3_nouveau2": {
+    "methode": "vigenere",
+    "cle": "ORAGE",
+    "preparation": "nettoyer",
+    "longueur": 300,
+    "clair": "LE TRAIN EST ENTRE EN GARE AVEC UNE HEURE DE RETARD. SUR LE QUAI, LES VOYAGEURS S IMPATIENTENT, LES PORTEURS CHERCHENT LEURS CLIENTS, ET UN EMPLOYE ANNONCE D UNE VOIX LASSE QUE LE DEPART AURA LIEU DANS VINGT MINUTES. PERSONNE NE SEMBLE L ECOUTER. DANS LE BUREAU DU CHEF DE GARE, ON CLASSE DES TELEGRAMMES PAR ORDRE D ARRIVEE : CELUI DE CE MATIN VIENT DE LA COTE, IL PARLE DE MARCHANDISES ET DE PAPIERS, ET IL EST SIGNE D UN NOM QUE PERSONNE NE RECONNAIT ICI.",
+    "commentaire": "Quatrième dépêche, plus courte (300 lettres) et donc plus difficile : l'indice de coïncidence y est plus bruité. Clef ORAGE (5 lettres)."
+  }
+}
