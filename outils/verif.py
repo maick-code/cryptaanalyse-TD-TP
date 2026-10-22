@@ -49,7 +49,7 @@ def empreinte(valeur) -> str:
     """
     return hashlib.sha256(str(valeur).encode("utf-8")).hexdigest()
 
-#: Racine du dépôt (le dossier qui contient `outils/`, `seance1_.../`, etc.).
+#: Racine du dépôt (le dossier qui contient `outils/`, le fichier de TP, etc.).
 RACINE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # (numero, titre, fonction) dans l'ordre d'apparition dans le fichier de tests.
@@ -75,8 +75,8 @@ def charger_module(nom: str, dossier: str | None = None):
     permet au professeur de tester le corrigé avec exactement les mêmes
     épreuves que les étudiants :
 
-        python3 test_tp1_permutation.py                # version étudiant
-        TP_CORRIGE=1 python3 test_tp1_permutation.py   # version corrigée
+        python3 test_tp_cryptanalyse_lineaire.py                # version étudiant
+        TP_CORRIGE=1 python3 test_tp_cryptanalyse_lineaire.py   # version corrigée
     """
     if os.environ.get("TP_CORRIGE") == "1":
         chemin = os.path.join(RACINE, "corriges", "corrige_" + nom + ".py")

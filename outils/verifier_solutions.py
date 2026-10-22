@@ -2,14 +2,14 @@
  OUTIL DU PROFESSEUR — les blocs ✅ SOLUTION suffisent-ils ?
 ==========================================================================
 
-Ce script vérifie, pour chaque séance, que les solutions imprimées dans le
-fichier de TP des étudiants permettent bien d'obtenir un fichier qui passe
-TOUTES les épreuves.  Concrètement :
+Ce script vérifie que les solutions imprimées dans le fichier de TP des
+étudiants permettent bien d'obtenir un fichier qui passe TOUTES les épreuves.
+Concrètement :
 
-   1. il ouvre le fichier de TP (par exemple `tp1_permutation.py`) ;
+   1. il ouvre `tp_cryptanalyse_lineaire.py` ;
    2. il recopie le contenu des blocs « ✅ SOLUTION » à la place des squelettes
       « --- À COMPLÉTER --- » ;
-   3. il lance les épreuves de la séance sur ce fichier reconstruit ;
+   3. il lance les épreuves sur ce fichier reconstruit ;
    4. il remet le fichier de TP dans son état d'origine (rien n'est modifié).
 
 Pourquoi cet outil ?  Parce qu'un squelette à trous n'est utile que si les trous
@@ -32,9 +32,7 @@ import sys
 RACINE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 SEANCES = [
-    ("seance1_permutation_substitution", "tp1_permutation.py", "test_tp1_permutation.py"),
-    ("seance2_vigenere", "tp2_vigenere.py", "test_tp2_vigenere.py"),
-    ("seance3_cryptanalyse", "tp3_vigenere_vic.py", "test_tp3_vigenere_vic.py"),
+    (".", "tp_cryptanalyse_lineaire.py", "test_tp_cryptanalyse_lineaire.py"),
 ]
 
 MARQUEUR_SQUELETTE = "# --- À COMPLÉTER"
@@ -151,7 +149,7 @@ def main() -> int:
     if tout_bon:
         print("Tout est cohérent : recopier les solutions imprimées suffit à réussir le TP.")
     else:
-        print("ATTENTION : au moins une séance pose problème (voir ci-dessus).")
+        print("ATTENTION : le fichier de TP pose problème (voir ci-dessus).")
     return 0 if tout_bon else 1
 
 

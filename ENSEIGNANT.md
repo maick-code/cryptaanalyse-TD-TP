@@ -1,13 +1,14 @@
-# Guide de l'enseignant — TP de cryptographie (chapitres 1 et 2)
+# Guide de l'enseignant — TP de cryptanalyse linéaire
 
-Ce dépôt contient un TP Python complet accompagnant les **chapitres 1 et 2** du cours
-de Pascal Boyer, *Cryptographie 2013* (Université Paris 13) :
+Ce dépôt contient **un seul TP**, consacré à la **cryptanalyse linéaire** dans le cadre de
+la **cryptographie à clé secrète** (ou symétrique) : chiffrement par blocs, boîte S,
+table des approximations linéaires, lemme du piling-up, attaque du dernier tour.
 
-* **chapitre 1** — Généralités : historique, présentation axiomatique d'un code, principe de Kerckhoffs ;
-* **chapitre 2** — Exemples simples : codes de permutation, codes de substitution, cryptanalyse,
-  codes polyalphabétiques, code de VIC.
+Il ne suppose **aucun** prérequis de cryptographie classique : le § A reprend depuis les
+bits, le XOR et la parité. Il peut donc se placer après un cours d'introduction à la
+cryptographie à clé secrète, ou en fin de module.
 
-Trois séances de 2 h chacune, à pratiquer sur machine, avec épreuves automatiques.
+**Durée conseillée : 3 h.** Aucune dépendance externe, Python 3 suffit.
 
 ---
 
@@ -15,356 +16,248 @@ Trois séances de 2 h chacune, à pratiquer sur machine, avec épreuves automati
 
 ```
 cryptaanalyse-TD-TP/
-├── verifier.py                     lanceur global (toutes séances, ou une seule)
-├── ENSEIGNANT.md                   ce guide
-├── README.md                       mode d'emploi pour les étudiants
-├── outils/                         le socle commun
-│   ├── reference.py                primitives écrites par le professeur (scytale, Vigenère,
-│   │                               VIC simplifié, nettoyage de texte, réhabilitation)
-│   ├── texte_francais.py           corpus de référence, fréquences, khi-deux,
-│   │                               vraisemblance de bigrammes, indice de coïncidence
-│   ├── verif.py                    mini-harnais d'épreuves (bibliothèque standard uniquement)
-│   ├── generer_messages.py         outil du professeur : régénère messages et empreintes
-│   └── verifier_solutions.py       outil du professeur : vérifie que les blocs ✅ SOLUTION
-│                                   suffisent à passer toutes les épreuves
-├── seance1_permutation_substitution/
-│   ├── tp1_permutation.py          fichier à compléter par les étudiants (6 fonctions)
-│   │                               auto-suffisant : mini-cours de Python (§ A), code (§ B),
-│   │                               ★ CRYPTANALYSE ★ (§ C), histoire (§ D), expériences (§ E),
-│   │                               questions de rapport (§ F)
-│   ├── common.py                   réexporte les outils du professeur (compatibilité)
-│   └── test_tp1_permutation.py     épreuves automatiques (11)
-├── seance2_vigenere/
-│   ├── tp2_vigenere.py             fichier à compléter (5 fonctions) : § A cours, § B code,
-│   │                               § C ★ CRYPTANALYSE ★, § D expériences, § E questions
-│   └── test_tp2_vigenere.py        épreuves automatiques (10)
-├── seance3_cryptanalyse/
-│   ├── tp3_vigenere_vic.py         fichier à compléter (7 fonctions) : § A cours, § B analyse,
-│   │                               § C ★ CRYPTANALYSE ★, § D code de VIC, § E expériences,
-│   │                               § F questions
-│   └── test_tp3_vigenere_vic.py    épreuves automatiques (12)
+├── verifier.py                        lanceur : python3 verifier.py
+├── ENSEIGNANT.md                      ce guide
+├── README.md                          mode d'emploi pour les étudiants
+├── tp_cryptanalyse_lineaire.py        fichier à compléter (12 fonctions + 1 bonus)
+│                                      § A cours (clé secrète, XOR, biais), § B boîte S/LAT,
+│                                      § C SPN-8, § D ★ CRYPTANALYSE ★, § E expériences,
+│                                      § F questions, § G exercices
+├── donnees_lineaire.py                2 000 couples clair-chiffré (zone générée)
+├── test_tp_cryptanalyse_lineaire.py   épreuves automatiques (16)
+├── outils/
+│   ├── lineaire.py                    socle : boîte S, SPN-8 de référence, LAT,
+│   │                                  diversification, attaque de référence, statistiques
+│   ├── verif.py                       mini-harnais d'épreuves (bibliothèque standard)
+│   ├── generer_donnees_lineaire.py    outil du professeur : régénère données, calibre
+│   │                                  la clé, réécrit les empreintes
+│   └── verifier_solutions.py          outil du professeur : vérifie que les blocs
+│                                      ✅ SOLUTION suffisent à passer toutes les épreuves
 └── corriges/
-    ├── corrige_tp1_permutation.py  corrigés complets, testés par les mêmes épreuves
-    ├── corrige_tp2_vigenere.py
-    ├── corrige_tp3_vigenere_vic.py
-    └── sources_messages.json       messages en clair et clefs (NE PAS DISTRIBUER)
+    ├── corrige_tp_cryptanalyse_lineaire.py   corrigé complet, mêmes épreuves
+    ├── corrige_exercices_lineaire.md         corrigé des exercices papier et du barème
+    └── sources_lineaire.json                 clé maître et graine (NE PAS DISTRIBUER)
 ```
 
-**Ce que l'on distribue aux étudiants** : les trois dossiers `seanceX_.../` *et* le dossier
-`outils/` (indispensable aux imports). Le dossier `corriges/` reste pour vous.
+**Ce que l'on distribue aux étudiants** : `tp_cryptanalyse_lineaire.py`,
+`donnees_lineaire.py`, `test_tp_cryptanalyse_lineaire.py`, `verifier.py` et le dossier
+`outils/`. Le dossier `corriges/` reste pour vous.
 
 ## 2. Comment lancer les épreuves
 
-Dans le dossier d'une séance :
+Depuis la racine du dépôt :
 
 ```bash
-python3 test_tp1_permutation.py          # vérifie le travail de l'étudiant
-TP_CORRIGE=1 python3 test_tp1_permutation.py   # vérifie votre corrigé
+python3 verifier.py                  # fichier des étudiants
+TP_CORRIGE=1 python3 verifier.py     # corrigé du professeur (16/16 attendu)
 ```
 
-À la racine, pour tout lancer d'un coup :
+Ou directement :
 
 ```bash
-python3 verifier.py            # les trois séances (fichiers étudiants)
-python3 verifier.py 2          # seulement la séance 2
-TP_CORRIGE=1 python3 verifier.py   # tout, en version corrigée
+python3 test_tp_cryptanalyse_lineaire.py
+TP_CORRIGE=1 python3 test_tp_cryptanalyse_lineaire.py
 ```
 
-Chaque épreuve affiche `[OK]`, `[ÉCHEC]`, `TODO non fait` ou `erreur Python : ...`
-avec un message rédigé pour l'étudiant (rappel de la consigne, valeurs attendues,
-pistes). Aucune dépendance externe : ni `pytest`, ni `numpy`, ni accès réseau.
-Les fichiers d'épreuves sont aussi compatibles `pytest` si vos machines l'ont
-(`python3 -m pytest`).
-
-Les réponses des exercices « message intercepté » ne sont **pas** écrites en clair dans
-les fichiers d'épreuves : ceux-ci contiennent des empreintes SHA-256, produites par
-`outils/generer_messages.py`. Un étudiant qui lit le fichier de tests n'y trouve donc
-pas la solution.
-
-Les épreuves se répartissent ainsi (33 au total, dont **23 portent sur la
-cryptanalyse** — les messages interceptés et les fonctions d'attaque) :
-
-| Séance | Fonctions | Épreuves | dont ★ CRYPTANALYSE ★ |
-|---|---|---|---|
-| 1 | 6 | 11 | C.1 → C.8 (8) |
-| 2 | 5 | 10 | C.1 → C.8 (8) |
-| 3 | 7 | 12 | C.1 → C.7 (7) + D.3 (VIC) |
-
-Deux outils de maintenance, à lancer après toute modification :
+Vérifications de cohérence, à faire après toute modification du TP :
 
 ```bash
-python3 outils/generer_messages.py     # régénère messages + empreintes, et rejoue vos attaques
-python3 outils/verifier_solutions.py   # recopie les blocs ✅ SOLUTION à la place des squelettes,
-                                       # lance les épreuves, puis restaure les fichiers
+python3 outils/verifier_solutions.py           # recopier les ✅ donne-t-il 16/16 ?
+python3 outils/generer_donnees_lineaire.py --verifier   # données conformes ?
 ```
 
-Le second répond à la question « un étudiant qui recopie fidèlement la solution imprimée
-dans son fichier obtient-il bien toutes les épreuves ? ». Il garantit donc que le guidage
-va bien jusqu'à la réponse, sans trou manquant.
-
-## 3. Déroulé conseillé des séances
-
-### Séance 1 — Généralités, permutation, substitution (2 h)
+## 3. Déroulé conseillé (3 h)
 
 | Temps | Contenu | Où |
 |---|---|---|
-| 10 min | Définition axiomatique d'un code, Kerckhoffs, vocabulaire + les dix gestes de Python | § A du TP 1 |
-| 15 min | Observation : histogramme du français, `MESSAGE_CESAR` à l'œil | expériences 1 et 3 du TP 1 |
-| 20 min | B.1 `compter_lettres`, B.2–B.3 `cesar_chiffrer`/`cesar_dechiffrer` | `tp1_permutation.py` |
-| 20 min | **C.1 `attaque_scytale`** : casser la permutation sans la clef | idem |
-| 20 min | **C.2 `forcer_cesar`** : casser la substitution par les fréquences | idem |
-| 20 min | **C.3 `identifier_et_dechiffrer`** : reconnaître la méthode, puis les cinq messages interceptés | idem, épreuves C.4 à C.8 |
-| 10 min | Marie Stuart (supplément historique) | § D du TP 1 |
-| 5 min | Rédaction des questions de rapport | § F du TP 1 |
+| 15 min | Cryptographie à clé secrète, Kerckhoffs, chiffrement par blocs, confusion/diffusion, modèle clair connu | § A du TP |
+| 15 min | XOR, parité, masques ; les trois biais (`p`, `δ`, `ρ`) | § A du TP |
+| 15 min | B.1–B.2 : parité masquée, boîte S | `tp_cryptanalyse_lineaire.py` |
+| 20 min | B.3–B.4 : `S⁻¹`, puis la LAT ; **expérience 1** | idem |
+| 25 min | C.1–C.2 : couche linéaire P, chiffrement SPN-8, vecteurs de test | idem |
+| 15 min | **Expérience 2** : les trois biais de la trace `9 → 2 → 13` | § E du TP |
+| 35 min | **D.1–D.3** : compter la relation, classer les 16 candidats, groupe de tête | idem |
+| 30 min | **D.4–D.6** : clés candidates, vérification, attaque complète avec statuts | idem |
+| 20 min | **Expérience 5** : à partir de quel `N` l'attaque est-elle fiable ? limites | § E |
+| 10 min | Questions de rapport, exercices papier 1 à 3 | § F et § G |
 
-La cryptanalyse occupe 60 min sur 120 : c'est volontaire, c'est le sujet du chapitre 2.
+Trois points à installer au tableau, dans cet ordre :
 
-Points à installer explicitement au tableau : la scytale ne change **aucune** lettre,
-donc les fréquences restent celles du français ; ce sont des **bigrammes** (paires de
-lettres) qui trahissent le mauvais ordre, d'où l'usage de `vraisemblance` fourni.
-Deuxième point : **l'indice de coïncidence ne sert à rien ici** (il est invariant par
-décalage de l'alphabet), alors qu'il sera l'outil central du TP 3 — les étudiants
-retrouveront ce fil.
+1. **le signe ne compte pas.** Le score `|2c − N|` mesure un écart au hasard ; un candidat
+   à `p = 0,25` est aussi intéressant qu'un candidat à `p = 0,75`. C'est pourquoi
+   plusieurs candidats sont à égalité (ici quatre), et pourquoi on conserve un **groupe**
+   avant de vérifier ;
+2. **le piling-up n'est pas une mesure.** Il prédit `p = 0,4375` ; le biais exact de la
+   clé du jeu de données vaut `0,25` et `0,875`. L'écart n'est pas une erreur de calcul :
+   les tours ne sont pas indépendants et plusieurs traces contribuent ;
+3. **une attaque peut échouer**, et le programme doit le dire. Les statuts `elargie`,
+   `incertaine` et `echec` sont là pour cela ; il n'y a aucune recherche exhaustive de
+   secours. L'expérience 5 le montre sur de petits échantillons.
 
-Contrainte matérielle à annoncer : sur un texte trop court, toute attaque par les
-fréquences se trompe — et ce n'est pas la faute de leur code. Les cas d'école des
-épreuves sont dimensionnés en conséquence (60 à 180 lettres ; au TP 2, chaque colonne
-doit contenir une quinzaine de lettres). Faites plutôt constater la limite que
-l'affirmer : refaites `forcer_cesar` sur un message d'une vingtaine de lettres, la bonne
-clef n'arrive plus en tête. C'est la leçon de méthode la plus utile de ces séances.
-
-### Séance 2 — Vigenère (2 h)
-
-| Temps | Contenu | Où |
-|---|---|---|
-| 10 min | Idée du chiffre polyalphabétique, convention sur les espaces | § A du TP 2 |
-| 15 min | B.1–B.2 : mettre Vigenère en œuvre (chiffrer, déchiffrer) | `tp2_vigenere.py` |
-| 10 min | **Expérience centrale** : trois histogrammes (clair, César, Vigenère) | expérience 1 du TP 2 |
-| 40 min | **C.1–C.2** : une colonne = un César, puis casser trois dépêches à période donnée | idem, épreuves C.3 à C.5 |
-| 25 min | **C.3** : attaque à texte clair connu, `MESSAGE_INTERCEPTE` entièrement retrouvé | idem, épreuves C.6 à C.8 |
-| 15 min | Expérience 4 (clef plus longue que le texte connu), question 6 (deux messages, même clef), rédaction | § D et § E du TP 2 |
-
-La difficulté technique de la séance est le compteur de lettres de clef : il ne
-s'incrémente **que** sur les lettres (les espaces ne consomment rien). Faites écrire
-au tableau le premier espace du message pour éviter l'erreur classique.
-
-### Séance 3 — Kasiski, Friedman, VIC (2 h à 2 h 30)
-
-| Temps | Contenu | Où |
-|---|---|---|
-| 10 min | Kasiski : pourquoi les distances sont des multiples de la période | § A du TP 3 |
-| 20 min | B.1–B.2 : indice de coïncidence, tableau des périodes, période probable | `tp3_vigenere_vic.py` |
-| 25 min | **C.1–C.2** : répétitions, distances, votes des diviseurs | idem |
-| 25 min | **C.3** : période **et** clef retrouvées, les quatre dépêches déchiffrées | idem, épreuves C.4 à C.7 |
-| 30 min | D.1–D.2 : VIC allégé (damier, addition de clef, transposition), `MESSAGE_VIC` | idem, épreuve D.3 |
-| 10 min | Expérience 3 (croiser Kasiski et Friedman) | § E du TP 3 |
-| 10 min | Synthèse : César → Vigenère → VIC → Enigma ; questions de rapport | § F du TP 3 |
-
-Le point d'articulation de la séance est le suivant : **Kasiski seul est ambigu** (les
-petits diviseurs 2, 3, 4 divisent beaucoup de distances par hasard), **l'indice de
-coïncidence tranche**. Faites afficher les deux tableaux côte à côte (l'expérience 3 du
-TP 3 le fait) : c'est une belle leçon de méthode.
-
-## 4. Programme des fonctions à écrire
-
-Chaque fichier est organisé de la même façon : `§ B` = ce qui sert à **chiffrer**,
-`§ C` = ★ **CRYPTANALYSE** ★ (la partie principale), puis expériences et questions.
-Seules les fonctions de `§ B` et `§ C` (et `§ D` pour le VIC) sont à écrire : tout le
-reste — découpage, recollage, colonnes, tableaux, critères statistiques — est fourni dans
-`outils/`.
-
-### Séance 1 — `tp1_permutation.py` (six fonctions, 11 épreuves)
+## 4. Les fonctions à écrire
 
 | N° | Fonction | Objectif pédagogique |
 |---|---|---|
-| B.1 | `compter_lettres` | dictionnaire, initialisation des 26 clefs, parcours d'une chaîne |
-| B.2 | `cesar_chiffrer` | arithmétique modulaire (`% 26`), appel d'une fonction fournie |
-| B.3 | `cesar_dechiffrer` | réutilisation d'un code écrit, `%` et décalage négatif |
-| C.1 | `attaque_scytale` | ★ recherche exhaustive sur les clefs + critère `vraisemblance` |
-| C.2 | `forcer_cesar` | ★ minimisation de `distance_au_francais` sur les 26 clefs |
-| C.3 | `identifier_et_dechiffrer` | ★ choisir entre deux attaques et renvoyer la méthode trouvée |
+| B.1 | `parite_masque` | XOR d'un mot, `bin(...).count("1") % 2` |
+| B.2 | `appliquer_sbox` | extraction et recollement de quartets (`>>`, `&`, `<<`, `\|`) |
+| B.3 | `sbox_inverse` | bijection, recherche d'antécédent |
+| B.4 | `table_approximations` | double boucle, comptage, `LAT = #solutions − 8` |
+| C.1 | `permuter` | couche linéaire, involution |
+| C.2 | `chiffrer` | composition de fonctions, ordre des opérations, clés de tour |
+| C.3 | `dechiffrer` (bonus) | inversion d'un chiffrement, ordre inverse |
+| D.1 | `compter_relation` | ★ déchiffrement partiel du dernier tour, comptage |
+| D.2 | `attaquer_quartet` | ★ score `\|2c − N\|`, tri, 16 candidats |
+| D.3 | `groupe_de_tete` | ★ seuil relatif, gestion des ex æquo et des scores nuls |
+| D.4 | `cle_candidates` | ★ bijection `M → K3`, filtrage par deux groupes |
+| D.5 | `verifier_cles` | ★ vérification sur couples connus (le critère du cryptanalyste) |
+| D.6 | `attaquer_cle` | ★ élargissement progressif, quatre statuts, refus de conclure |
 
-Les épreuves C.4 à C.8 sont des **messages interceptés** à casser : `MESSAGE_SCYTALE`,
-`MESSAGE_CESAR`, puis trois messages « mystère » dont la méthode elle-même est inconnue.
-
-### Séance 2 — `tp2_vigenere.py` (cinq fonctions, 10 épreuves)
-
-| N° | Fonction | Objectif pédagogique |
-|---|---|---|
-| B.1 | `vigenere_chiffrer` | compteur de lettres de clef qui doit **ignorer** espaces et ponctuation |
-| B.2 | `vigenere_dechiffrer` | symétrie des deux opérations (`-decalage % 26`) |
-| C.1 | `decalage_probable` | ★ une colonne = un César : chi-deux sur une colonne de texte |
-| C.2 | `forcer_vigenere` | ★ `colonnes` → un César par colonne → `recoller` |
-| C.3 | `cle_par_texte_connu` | ★ retrouver la clef à partir d'un fragment de texte clair connu |
-
-Épreuves C.3 à C.5 : `MESSAGE_VIGENERE_1`, `MESSAGE_VIGENERE_2`, `MESSAGE_URGENT` (période
-donnée). Épreuves C.7 et C.8 : `MESSAGE_INTERCEPTE`, avec un fragment de texte connu.
-
-### Séance 3 — `tp3_vigenere_vic.py` (sept fonctions, 12 épreuves)
-
-| N° | Fonction | Objectif pédagogique |
-|---|---|---|
-| B.1 | `indice_coincidence_moyen` | moyenne des indices des colonnes : critère de Friedman |
-| B.2 | `periode_probable` | choisir la **plus petite** période au-dessus de 90 % du meilleur indice |
-| C.1 | `kasiski_distances` | positions successives d'un groupe (`find`), distances sans doublon |
-| C.2 | `support_kasiski` | ★ dictionnaire de votes des diviseurs de chaque distance |
-| C.3 | `forcer_vigenere` | ★ attaque complète : période inconnue puis colonnes |
-| D.1 | `chiffre_du_damier` | lecture d'un carré latin, addition modulo 10 |
-| D.2 | `dechiffrer_message_vic` | soustraction, permutation inverse, réhabilitation du texte |
-
-Épreuves C.4 à C.7 : les quatre dépêches `MESSAGE_1` à `MESSAGE_4`, **période inconnue**.
-Épreuve D.3 : `MESSAGE_VIC` (clef fournie, comme convenu pour l'allègement).
+Les épreuves B.5, C.3 et D.7–D.8 vérifient les valeurs de la trace, la sensibilité à la
+clé et les **limites** (élargissement, échec, comparaison biais exact / mesuré / piling-up).
 
 ## 4 bis. Comment le guidage est organisé (et comment noter)
 
-Les étudiants n'ont pas de niveau en Python. Chaque fichier de TP est donc construit pour
-être lu et suivi sans connaissances préalables, et **tout ce qui n'est pas la
-cryptanalyse est fourni** : c'est ce qui permet de faire tenir 23 épreuves
-cryptographiques dans trois séances de 2 h.
+Chaque fonction suit le même plan, pour être lisible sans connaissances préalables :
 
-* **mini-cours en tête de fichier** : les dix gestes de Python utilisés (variables, chaînes,
-  boucles, listes, dictionnaires, fonctions), avec des exemples courts et les cinq erreurs
-  classiques ;
-* **recette numérotée** en français pour chaque fonction, indépendante du code ;
-* **squelette à trous** : les boucles, tests et affectations sont déjà écrits ; l'étudiant
-  remplace les `...` par l'expression demandée (le commentaire en face dit ce qu'il faut
-  mettre) ;
-* **bloc ✅ SOLUTION** en commentaire dans le même fichier, avec la consigne orale : « tu
-  essaies d'abord, tu lis la solution si tu bloques plus de cinq minutes ». La solution
-  complète est donc disponible, mais il faut la recopier et la comprendre ;
-* **fonctions de contrôle** en fin de fichier (`python3 tpX_....py`) qui affichent, fonction
-  par fonction, « pas encore terminée » ou le résultat obtenu ;
-* **expériences** à taper dans l'interpréteur (`python3`), suivies de **questions de
-  rapport**.
+* **OBJECTIF** : ce que la fonction doit faire ;
+* **POURQUOI (COURS)** : son rôle dans la cryptanalyse linéaire ;
+* **CE QUE TU DOIS FAIRE** : la recette numérotée, en français, indépendante du code ;
+* **RAPPELS PYTHON** : l'instruction exacte dont l'étudiant a besoin ;
+* **squelette à trous** : les boucles et affectations sont écrites, il reste les `...` ;
+* **✅ SOLUTION** en commentaire, avec la consigne orale : « tu essaies d'abord, tu lis la
+  solution si tu bloques plus de cinq minutes ».
 
-Suggestion de barème (sur 20) : 12 points pour les épreuves automatiques (`[OK]` comptés
-sur le total de la séance : 11, 10 et 12 selon la séance), 4 points pour les questions de
-rapport, 4 points pour la clarté du code et la capacité à expliquer une fonction à l'oral.
-Comme 23 des 33 épreuves portent sur des messages interceptés, le barème récompense
-spontanément la cryptanalyse et non la recopie des squelettes. Les blocs ✅ étant fournis, la note
-de code ne doit pas récompenser la recopie, mais l'explication : faites commenter une
-fonction au tableau, ou poser une question du type « que renvoie `candidat[:40]` et
-pourquoi ? ».
+Suggestion de barème (sur 20) : 12 points pour les épreuves automatiques, 4 points pour
+les questions de rapport, 4 points pour la clarté du code et la capacité à expliquer une
+fonction à l'oral. Pour le détail, voir `corriges/corrige_exercices_lineaire.md` : il
+propose un barème qui valorise particulièrement l'exercice 5 (diagnostic d'un échec),
+le plus discriminant.
 
 ## 5. Erreurs les plus fréquentes (à surveiller)
 
-1. **Oublier `% 26`** : `ALPHABET[indice + cle]` provoque un `IndexError` dès qu'on dépasse
-   Z. Le message d'épreuve est explicite (épreuve B.2 du TP 1).
-2. **Faire consommer la clef par les espaces** (TP 2) : l'épreuve B.1 le détecte
-   immédiatement grâce à un cas contenant espaces et ponctuation. Faites écrire au tableau
-   le premier espace de `"LE MESSAGE ARRIVE"` : le compteur ne doit pas avancer.
-3. **Découper les colonnes sur un texte qui contient encore ses espaces** : `colonnes`
-   attend le texte réduit aux lettres (`vider_les_espaces`). Sinon toutes les colonnes sont
-   décalées à partir du premier espace et l'attaque propose une clef fausse. C'est
-   l'erreur la plus fréquente de la séance 2 (épreuve C.2), et la plus difficile à voir
-   à l'œil nu : la faire écrire au tableau avant de lancer les épreuves.
-4. **Comparer les fréquences des lettres pour attaquer la scytale** : la permutation ne
-   change pas les comptes, elle change l'**ordre**. Il faut un modèle de bigrammes, d'où
-   l'outil `vraisemblance` fourni. L'expérience 1 le montre en dix secondes, l'expérience 2
-   donne le bon critère.
-5. **Utiliser l'indice de coïncidence pour casser César** : il est *invariant* par décalage
-   de l'alphabet. C'est pourquoi la séance 1 fournit `distance_au_francais` (khi-deux) et
-   non l'indice de coïncidence ; la séance 3, elle, l'utilise pour trouver la **période**
-   (l'indice d'un texte polyalphabétique n'est élevé que si l'on aligne les bonnes
-   colonnes). Fil rouge à ne pas perdre : chaque instrument a son domaine de validité.
-6. **Se tromper de sens dans `recoller`** : on recolle avec `i // periode` (le rang dans la
-   colonne) et `i % periode` (la colonne), et non l'inverse. Le couple `divmod` est fourni
-   pour cette raison.
-7. **Croire qu'on peut retrouver une clef plus longue que le texte connu** (C.3 du TP 2) :
-   impossible ; le message d'épreuve le dit explicitement. On ne peut aligner que les
-   lettres de clef rencontrées.
-8. **VIC : message mal formé** — il doit être écrit uniquement avec les dix lettres du
-   damier (`ALPHABET_VIC`) et avoir une longueur multiple de 10 (l'épreuve D.2 le vérifie,
-   le script de génération compte les lettres à ajouter ou à retirer). Erreur voisine :
-   appliquer la transposition inverse dans le mauvais ordre, c'est-à-dire oublier de
-   repasser par `permutation_inverse` avant de réhabiliter le texte.
-9. **Textes trop courts** : aucun critère statistique ne fonctionne sur vingt lettres.
-   Les épreuves n'utilisent que des messages dimensionnés pour cela, et les docstrings
-   précisent les ordres de grandeur — à dire aux étudiants pour qu'ils ne se croient pas
-   fautifs.
+1. **Confondre les deux traces.** `depart_haut=False` (trace basse) sert à retrouver
+   **K3_HAUT** ; `depart_haut=True` (trace haute) sert à retrouver **K3_BAS**. C'est
+   contre-intuitif, et c'est l'erreur la plus fréquente de la séance. Le message de
+   l'épreuve D.4 la signale explicitement.
+2. **Croire que « mauvais candidat » = « biais nul ».** Faux, et c'est mesuré. Sur notre
+   clé, quatre candidats ont exactement le même score que le bon, et 522 couples
+   (clé, candidat) faux de l'ensemble des 256 clés ont `|δ| ≥ 0,25`. Faites afficher les
+   16 comptes (expérience 3) avant de parler de « bruit ».
+3. **Confondre les trois biais.** Le piling-up (`0,4375`) est une **prédiction**, le biais
+   exact (`0,25` / `0,875`) est une propriété du chiffre pour cette clé, le biais mesuré
+   (`≈ 0,258` / `0,873`) est une **estimation** sur 2 000 couples. Les trois interviennent
+   à des titres différents ; le § A les définit.
+4. **Vouloir « sauver » une attaque qui échoue.** Le statut `echec` n'est pas un bug.
+   Interdire toute recherche exhaustive de secours est un choix pédagogique explicite :
+   on préfère un échec signalé à une réussite maquillée.
+5. **Oublier que le score est une valeur absolue.** Il met à égalité `p = 0,25` et
+   `p = 0,75`. Ce n'est pas un défaut du programme mais une conséquence mathématique, et
+   c'est ce qui rend la vérification (D.5) indispensable.
+6. **Textes trop courts** : aucun critère statistique ne fonctionne sur vingt couples.
+   Les expériences 5 et l'épreuve D.7 font constater la limite plutôt que l'affirmer.
 
-## 6. Modifier les messages interceptés
+## 6. Régénérer les données
 
-Tout est centralisé dans `corriges/sources_messages.json` (réservé au professeur) :
+La clé, la graine et le nombre de couples sont dans `corriges/sources_lineaire.json` :
 
 ```bash
-# 1. modifier les messages/clefs dans corriges/sources_messages.json
-# 2. régénérer constantes + empreintes, et vérifier que le corrigé sait encore casser
-python3 outils/generer_messages.py
-python3 outils/generer_messages.py --verifier   # vérifie sans écrire
+python3 outils/generer_donnees_lineaire.py              # régénère données + empreintes
+python3 outils/generer_donnees_lineaire.py --verifier   # vérifie sans écrire
+python3 outils/generer_donnees_lineaire.py --calibrer   # cherche une clé admissible
 ```
 
-Le script :
+Le script refuse d'écrire si l'attaque ne retrouve pas la clé, ou si les biais, groupes et
+candidats ne sont pas ceux qu'annonce le TP. Il réécrit la zone générée de
+`donnees_lineaire.py` et les empreintes (`cle_maitre`, `groupe_haut`, `groupe_bas`,
+`candidats`, `donnees`) du fichier d'épreuves. **Ne modifiez jamais ces zones à la main.**
 
-1. prépare les messages (nettoyage, longueur imposée) ;
-2. chiffre par la méthode demandée (`scytale`, `cesar`, `vigenere`, `vic`) ;
-3. **rejoue les attaques de vos corrigés** et crie s'il y a un message impossible à
-   casser (trop court, texte trop pauvre) ;
-4. réécrit les zones `# --- DÉBUT DE LA ZONE GÉNÉRÉE ---` des fichiers de TP, des
-   corrigés **et des fichiers d'épreuves** (les empreintes SHA-256). **Ne modifiez jamais
-   ces zones à la main** : elles sont écrasées à la génération suivante.
-
-Conséquence à retenir : si vous remplacez un fichier de TP par une nouvelle version
-(ou si vous videz sa zone générée), **relancez la génération** pour réinstaller les
-messages et les empreintes, puis `outils/verifier_solutions.py`. Les étiquettes
-disponibles pour les empreintes sont `scytale`, `cesar`, `mystere1/2/3` (TP 1),
-`vigenere1`, `vigenere2`, `urgent`, `connu` (TP 2), `vigenere1` à `vigenere4`, `vic`
-(TP 3) : les fichiers d'épreuves les lisent par leur nom.
-
-Contraintes à respecter pour le VIC : message écrit uniquement avec les 10 lettres du
-damier (`ALPHABET_VIC = "SENATROIDL"`) et de longueur multiple de 10 ; le script
-indique le nombre de lettres à ajouter ou à retirer si ce n'est pas le cas.
+**Si vous changez la clé, relisez le § 7** : sur les 256 clés possibles, 13 seulement
+conviennent. Le mode `--calibrer` les cherche pour vous.
 
 ## 7. Choix techniques et honnêteté scientifique
 
-* **Langue et alphabets** : les textes sont ramenés en majuscules sans accent
-  (`outils/reference.nettoyer`). Le corpus de référence (`outils/texte_francais.py`)
-  est un texte français d'environ 2 400 lettres, ce qui donne des fréquences très
-  proches des valeurs publiées : E ≈ 16,5 %, S ≈ 8,9 %, T ≈ 7,7 %, indice de
-  coïncidence ≈ 0,075.
-* **Vigenère** : convention classique — les caractères non alphabétiques sont recopiés
-  et ne consomment pas de lettre de clef. La séance 2 fait étudier l'autre convention
-  expérimentalement (c'est un exercice du TD d'origine).
-* **VIC** : nous utilisons une **version simplifiée assumée**. Le vrai VIC a quatre
-  étapes, avec une clef de 5 chiffres écrite dans le message (deux fois) et un chiffre
-  indicateur tiré au hasard. Ici : la clef est fournie au déchiffreur, l'indicateur est
-  la position du caractère dans son bloc de 10, et le damier 10 × 10 est un carré latin
-  construit comme celui du VIC (chaque ligne et chaque colonne contient les 10 lettres
-  une fois). Les différences sont documentées dans `outils/reference.py`, section 5, et
-  dans les rappels du cours du fichier de TP de la séance 3. Les TDs de l'enseignement de P. Boyer contiennent le
-  vrai tableau du VIC : il suffit de le recopier à la place du nôtre (`TABLEAU_VIC`),
-  le reste du code étant inchangé — mais il faut alors adapter la règle de conversion
-  lettres ↔ chiffres, qui dépend de la table utilisée.
-* **Critères statistiques fournis aux étudiants** : `distance_au_francais` (khi-deux sur
-  les fréquences de lettres) pour la séance 1, `vraisemblance` (log-vraisemblance
-  moyenne des bigrammes, estimée sur le corpus de référence) pour l'attaque de la
-  scytale, `indice_de_coincidence` pour la séance 3. Ce sont les critères classiques du
-  domaine, sous une forme utilisable en première année.
-* **Code fourni lisible** : `outils/reference.py` et `outils/texte_francais.py` sont
-  commentés presque ligne à ligne en français simple, pour que les étudiants puissent lire
-  le code du professeur (usage de `%`, `//`, `enumerate`, dictionnaires, etc.). Les
-  fichiers de TP ne comportent aucune bibliothèque externe, uniquement la bibliothèque
-  standard de Python 3.
-* **Allègement volontaire du code à écrire** : pour que la cryptanalyse tienne dans une
-  séance de 2 h, les étudiants n'écrivent que 18 fonctions (6 + 5 + 7), dont 9 sont des
-  attaques ; tout le reste est fourni. Le principe est explicité dans chaque fichier de
-  TP : « les outils de rangement dont tu aurais besoin sont déjà écrits ; tu peux donc
-  consacrer tout ton temps aux attaques ».
-* **Barème robuste** : les épreuves ont été vérifiées de bout en bout, et de trois façons :
-  les corrigés passent les 33 épreuves (`TP_CORRIGE=1 python3 verifier.py` → 33/33) ;
-  `outils/generer_messages.py` vérifie que **chaque message intercepté est effectivement
-  cassable** par le corrigé dans les conditions de la séance (période trouvée, Kasiski
-  bien classé, VIC déchiffré) ; `outils/verifier_solutions.py` vérifie que recopier
-  fidèlement les blocs ✅ SOLUTION suffit à obtenir 100 %. Les épreuves ne dépendent donc
-  ni d'un style de programmation particulier, ni d'une interprétation de la consigne.
+### Le chiffre
+
+SPN-8 : bloc de 8 bits, deux quartets, boîte S de PRESENT (biais maximal `1/4`), couche
+linéaire = échange des quartets, trois tours, clé maître de 8 bits diversifiée en quatre
+clés de tour. Ce format tient dans une séance de 3 h et permet l'attaque du dernier tour
+sur **16 candidats** par quartet. Le TD de référence (Bombar, TD 6) travaille sur 32 bits
+avec SageMath : mêmes concepts, coût machine sans commune mesure.
+
+### La trace
+
+`9 → 2 → 13` sur **deux** tours. La troisième approximation n'est pas ajoutée parce
+qu'une trace qui traverse les trois tours se termine sur la *sortie* de la boîte S du
+dernier tour, qui dépend des 8 bits de `K3` : il faudrait alors 256 candidats, et
+l'attaque ne gagnerait plus rien. C'est une erreur de conception à éviter si vous
+modifiez le chiffre.
+
+### Les trois biais
+
+Le TP distingue `p`, `δ = p − 1/2` et `ρ = 2p − 1`, et n'emploie jamais « epsilon » sans
+le définir. Le piling-up s'écrit `ρ_total = ∏ ρ_i`, donc `p = 1/2 + ρ_total/2`, ce qui est
+équivalent à `p = 1/2 + 2^(m−1) ∏ δ_i`. Les deux écritures sont vérifiées par
+l'exercice 3.
+
+### Le calibrage est assumé
+
+Sur un bloc de 8 bits, le biais exact dépend de la clé et peut être **nul** : 80 clés sur
+256 ont un biais nul dans une orientation donnée, et seules 13 remplissent les conditions
+du TP. `M = 19` a été choisie pour cela. Sans ce calibrage, une clé sur deux environ
+rendrait l'attaque impossible — ce qui serait une mauvaise surprise en TP, mais qui est
+une propriété réelle du chiffre. L'expérience 6 le montre aux étudiants, et la question 4
+leur demande de l'expliquer.
+
+### Les limites sont documentées, pas masquées
+
+`attaquer_cle` renvoie un statut (`certaine`, `elargie`, `incertaine`, `echec`) et ne fait
+**jamais** de recherche exhaustive de secours. Les épreuves D.7 vérifient deux cas
+déterministes : sur `PAIRES[0:10]` l'attaque doit élargir, sur `PAIRES[60:70]` elle doit
+échouer.
+
+**Fiabilité mesurée** (300 tirages aléatoires dans les 2 000 couples, clé `M = 19`) :
+
+| `N` | certaine | élargie | échec | clé correcte | faux positifs |
+|---:|---:|---:|---:|---:|---:|
+| 20 | 123 | 146 | 31 | 269/300 | 0 |
+| 50 | 172 | 119 | 9 | 291/300 | 0 |
+| 100 | 222 | 77 | 1 | 299/300 | 0 |
+| 200 | 251 | 49 | 0 | 300/300 | 0 |
+| 400 | 293 | 7 | 0 | 300/300 | 0 |
+| 1 000 | 300 | 0 | 0 | 300/300 | 0 |
+| 2 000 | 300 | 0 | 0 | 300/300 | 0 |
+
+À `N = 2 000`, le seuil 0,8 suffit toujours et l'attaque ne se trompe jamais sur ces
+300 tirages. En dessous de 200 couples, les statuts `elargie` et `echec` apparaissent :
+c'est exactement ce que l'expérience 5 fait observer, et ce que l'épreuve D.7 vérifie.
+Aucun faux positif n'a été observé, mais la garantie n'est pas absolue : c'est une
+probabilité, pas un théorème.
+
+### Les mauvais candidats ne sont pas équilibrés
+
+Le TP mesure (D.2, expérience 3) que plusieurs candidats faux atteignent le score du bon.
+L'exercice 5 va plus loin : à un tour, aucun candidat vrai n'est même dans le groupe.
+C'est une limite structurelle de l'attaque linéaire à une approximation de 4 bits.
+
+### Barème robuste
+
+Les épreuves ont été vérifiées de trois façons : le corrigé passe les 16 épreuves
+(`TP_CORRIGE=1 python3 verifier.py` → 16/16) ; `outils/generer_donnees_lineaire.py`
+vérifie que l'attaque retrouve la clé et que les valeurs annoncées sont exactes ;
+`outils/verifier_solutions.py` vérifie que recopier fidèlement les blocs ✅ SOLUTION suffit
+à obtenir 100 %. Les épreuves ne dépendent donc ni d'un style de programmation
+particulier, ni d'une interprétation de la consigne.
 
 ## 8. Aller plus loin avec les étudiants
 
-* chapitre 3 (chiffrement en chaînes, confidentialité parfaite) : le masque jetable
-  se discute très bien en prolongement de la séance 2 ;
-* Enigma et les répétitions récurrentes : la méthode de Kasiski de la séance 3 en est
-  le principe élémentaire ;
-* l'indice de coïncidence mutuel, qui permet de retrouver la période sans référence à
-  la langue (utilisable en projet sur de vrais corpus) ;
-* la cryptanalyse du VIC réel, dans les TDs de l'enseignement d'origine, constitue un
-  excellent sujet de projet de fin de module.
+* **Matsui 1 et 2** : remonter les clés tour par tour (voir l'exercice 5, qui montre
+  justement pourquoi c'est difficile sur ce chiffre).
+* **Cryptanalyse différentielle** : monter la même attaque avec des différences, et
+  comparer les deux taux de succès à nombre de couples égal. Excellent sujet de projet.
+* **SPN-16** : quatre boîtes S et une permutation de bits ; l'attaque porte alors sur
+  256 candidats par quartet. Bonne transition vers les chiffres réels.
+* **DES et AES** : relier le biais `1/4` de nos boîtes S aux biais de `~10^-6` du DES, et
+  calculer pourquoi Matsui avait besoin de `2^47` couples.
+* **Modes d'opération** : après avoir cassé un bloc, discuter CBC, CTR et l'effet d'un
+  mode sur les attaques à clair connu.
+* **Lecture du TD d'origine** (M. Bombar, TD 6) : même sujet, 32 bits, SageMath.
